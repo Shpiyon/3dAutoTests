@@ -5,7 +5,10 @@ dotenv.config();
 
 export default defineConfig({
   timeout: 180000,
-  expect: { timeout: 15000 },
+  expect: {
+    timeout: 15000,
+    toHaveScreenshot: { threshold: 0.3 },
+  },
   testDir: "./tests",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
@@ -15,10 +18,18 @@ export default defineConfig({
   reporter: "html",
   use: {
     headless: !!process.env.CI,
+    launchOptions: {
+      args: [
+        "--enable-gpu",
+        "--enable-webgl",
+        "--enable-webgl2",
+        "--enable-unsafe-webgpu",
+        "--max_old_space_size=4096",
+      ],
+    },
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "on-first-retry",
-    actionTimeout: 20000,
     navigationTimeout: 45000,
   },
   projects: [

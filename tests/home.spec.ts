@@ -1,67 +1,45 @@
-import { test, expect } from "@playwright/test";
+import { test, Page, BrowserContext } from "@playwright/test";
 import { HomePage } from "../pages/HomePage";
-import { AIScreenshotAnalyzer } from "../utils/aiScreenshotAnalyzer";
+import { ScreenshotTester } from "../utils/screenshotTester";
+import { BaselineScreenshotManager } from "../utils/baselineScreenshotManager";
+import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 
 test.describe("Home Page Functionality", () => {
   let homePage: HomePage;
+  let screenshotTester: ScreenshotTester;
+  let page: Page;
+  let context: BrowserContext;
 
-  test.beforeAll(async ({ page }) => {
+  test.beforeAll(async ({ browser }) => {
+    await BaselineScreenshotManager.initializeBaselines();
+    context = await browser.newContext();
+    page = await context.newPage();
     homePage = new HomePage(page);
     await homePage.startPage();
+    screenshotTester = new ScreenshotTester(page, browser);
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+    await context.close();
   });
 
   test("Should have working navigation menu", async () => {
-    homePage.navigationComponent.verifyNavigationIsVisible();
+    await homePage.navigationComponent.verifyNavigationIsVisible();
   });
 
-  test("Screenshot comparing", async ({ page }) => {
-    // Take a screenshot of the entire page
-    const screenshot = await page.screenshot({
-      fullPage: true,
-      type: "png",
-    });
-
-    // Convert screenshot to base64 for AI analysis
-    const base64Screenshot = screenshot.toString("base64");
-
-    // Save screenshot for reference
-    await page.screenshot({
-      path: "test-results/home-page-ai-analysis.png",
-      fullPage: true,
-    });
-
-    // Analyze the screenshot with AI
-    const analysisResult =
-      await AIScreenshotAnalyzer.analyze3DVisualizationPage(base64Screenshot);
-
-    console.log("=== AI Screenshot Analysis Results ===");
-    console.log(`Quality Score: ${analysisResult.score}/100`);
-    console.log(`Status: ${analysisResult.isValid ? "PASS" : "FAIL"}`);
-    console.log(`Analysis: ${analysisResult.analysis}`);
-
-    if (analysisResult.issues.length > 0) {
-      console.log("Issues found:");
-      analysisResult.issues.forEach((issue, index) => {
-        console.log(`  ${index + 1}. ${issue}`);
-      });
-    }
-
-    // Assert based on AI analysis results
-    expect(analysisResult.score).toBeGreaterThan(70); // Minimum quality score
-    expect(analysisResult.isValid).toBe(true); // Should pass AI validation
-
-    // Optional: Fail test if critical issues are found
-    const criticalIssues = analysisResult.issues.filter(
-      (issue) =>
-        issue.toLowerCase().includes("critical") ||
-        issue.toLowerCase().includes("broken") ||
-        issue.toLowerCase().includes("not loading")
+  test("3D Homepage Visual Regression Test (Default view)", async () => {
+    await runScreenshotTestWithReport(
+      screenshotTester,
+      "3d-homepage-base-view"
     );
+  });
 
-    if (criticalIssues.length > 0) {
-      throw new Error(
-        `Critical issues found in screenshot: ${criticalIssues.join(", ")}`
-      );
-    }
+  test("3D Homepage Visual Regression Test (Home view)", async () => {
+    await homePage.navigationComponent.navigateToHome();
+    await runScreenshotTestWithReport(
+      screenshotTester,
+      "3d-homepage-home-view"
+    );
   });
 });

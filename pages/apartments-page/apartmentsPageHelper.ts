@@ -1,6 +1,5 @@
-import { Page, expect } from "@playwright/test";
+import { Page, expect, Locator } from "@playwright/test";
 import { ApartmentsPage } from "./ApartmentsPage";
-
 export class ApartmentsPageHelper {
   private readonly apartmentsPage: ApartmentsPage;
 
@@ -30,5 +29,9 @@ export class ApartmentsPageHelper {
 
   async clickVillas() {
     await this.apartmentsPage.villas.click();
+  }
+
+  async verifyApartmentOptionText(locator: Locator, expectedText: string) {
+    await expect(locator).toHaveText(expectedText);
   }
 }

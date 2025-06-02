@@ -1,16 +1,17 @@
 import { Page, Locator } from "@playwright/test";
-import { BasePage } from "./BasePage";
-import { NavigationComponent } from "../components/navigation-component/NavigationComponent";
+import { BasePage } from "../BasePage";
+import { NavigationComponent } from "../../components/navigation-component/NavigationComponent";
 
 export class AmenitiesPage extends BasePage {
   readonly navigation: NavigationComponent;
 
   readonly gymPin: Locator;
   readonly poolPin: Locator;
-  readonly spaPin: Locator;
-  readonly restaurantPin: Locator;
-  readonly clubhousePin: Locator;
+  readonly loungePin: Locator;
+  readonly childrenPlygroundPin: Locator;
   readonly parkingPin: Locator;
+  readonly amenitieCard: Locator;
+  readonly amenitieCardTitle: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -25,20 +26,20 @@ export class AmenitiesPage extends BasePage {
       has: page.locator("span", { hasText: "Pool" }),
     });
 
-    this.spaPin = page.locator(".pin-wrapper", {
-      has: page.locator("span", { hasText: "Spa" }),
+    this.loungePin = page.locator(".pin-wrapper", {
+      has: page.locator("span", { hasText: "Lounge Area by the Pool" }),
     });
 
-    this.restaurantPin = page.locator(".pin-wrapper", {
-      has: page.locator("span", { hasText: "Restaurant" }),
-    });
-
-    this.clubhousePin = page.locator(".pin-wrapper", {
-      has: page.locator("span", { hasText: "Clubhouse" }),
+    this.childrenPlygroundPin = page.locator(".pin-wrapper", {
+      has: page.locator("span", { hasText: "Children Playground" }),
     });
 
     this.parkingPin = page.locator(".pin-wrapper", {
       has: page.locator("span", { hasText: "Parking" }),
     });
+
+    this.amenitieCard = page.locator("#amenitiesCard");
+
+    this.amenitieCardTitle = this.amenitieCard.locator("h3");
   }
 }
