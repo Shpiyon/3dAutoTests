@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 dotenv.config();
 
 export default defineConfig({
-  timeout: 180000,
+  timeout: process.env.CI ? 180000 : 40000,
   expect: {
     timeout: 15000,
     toHaveScreenshot: { threshold: 0.3 },

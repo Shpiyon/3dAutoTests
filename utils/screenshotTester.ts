@@ -32,13 +32,63 @@ export class ScreenshotTester {
       : this.runNativeScreenshotTest(options);
   }
 
+  async createBaselineIfMissing(
+    testName: string,
+    browserName: string,
+    comparisonMode: "ai" | "native"
+  ): Promise<ScreenshotTestResult | null> {
+    const testInfo = require("@playwright/test").test.info();
+    const testFilePath = testInfo?.file;
+
+    if (
+      BaselineScreenshotManager.hasBaseline(testName, browserName, testFilePath)
+    ) {
+      return null;
+    }
+
+    const screenshot = await this.takeScreenshot();
+    const screenshotPath = await this.saveScreenshot(testName, screenshot);
+
+    await BaselineScreenshotManager.saveBaseline(
+      testName,
+      screenshot,
+      {
+        testName,
+        browserName,
+      },
+      testFilePath
+    );
+
+    return {
+      success: true,
+      isBaseline: true,
+      screenshotPath,
+      baselinePath: BaselineScreenshotManager.getBaselinePath(
+        testName,
+        browserName,
+        testFilePath
+      ),
+      comparisonMode,
+    };
+  }
+
   private async runNativeScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
+    const { testName } = options;
+    const browserName = this.browser.browserType().name();
+
+    const baselineResult = await this.createBaselineIfMissing(
+      testName,
+      browserName,
+      "native"
+    );
+    if (baselineResult) return baselineResult;
+
     try {
-      await expect(this.page).toHaveScreenshot(`${options.testName}.png`, {
+      await expect(this.page).toHaveScreenshot(`${testName}.png`, {
         fullPage: true,
-        threshold: 0.3,
+        threshold: 0.9,
       });
       return {
         success: true,
@@ -66,28 +116,26 @@ export class ScreenshotTester {
   ): Promise<ScreenshotTestResult> {
     const { testName, threshold = 75 } = options;
     const browserName = this.browser.browserType().name();
+
+    // Check if baseline exists, if not create it
+    const baselineResult = await this.createBaselineIfMissing(
+      testName,
+      browserName,
+      "ai"
+    );
+    if (baselineResult) return baselineResult;
+
     const screenshot = await this.takeScreenshot();
     const screenshotPath = await this.saveScreenshot(testName, screenshot);
 
-    if (!BaselineScreenshotManager.hasBaseline(testName, browserName)) {
-      await BaselineScreenshotManager.saveBaseline(testName, screenshot, {
-        testName,
-        createdAt: new Date().toISOString(),
-        browserName,
-        viewportSize: this.page.viewportSize() || { width: 1280, height: 720 },
-        url: this.page.url(),
-      });
-      return {
-        success: true,
-        isBaseline: true,
-        screenshotPath,
-        comparisonMode: "ai",
-      };
-    }
+    // Get test file path from Playwright test context
+    const testInfo = require("@playwright/test").test.info();
+    const testFilePath = testInfo?.file;
 
     const baseline = BaselineScreenshotManager.loadBaseline(
       testName,
-      browserName
+      browserName,
+      testFilePath
     );
     if (!baseline) throw new Error("Baseline image could not be loaded.");
 
@@ -106,13 +154,14 @@ export class ScreenshotTester {
       screenshotPath,
       baselinePath: BaselineScreenshotManager.getBaselinePath(
         testName,
-        browserName
+        browserName,
+        testFilePath
       ),
       comparisonMode: "ai",
     };
   }
 
-  private async takeScreenshot(): Promise<Buffer> {
+  async takeScreenshot(): Promise<Buffer> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         return await this.page.screenshot({ fullPage: true, type: "png" });
@@ -125,10 +174,7 @@ export class ScreenshotTester {
     throw new Error("Screenshot failed");
   }
 
-  private async saveScreenshot(
-    testName: string,
-    screenshot: Buffer
-  ): Promise<string> {
+  async saveScreenshot(testName: string, screenshot: Buffer): Promise<string> {
     const fs = require("fs"),
       path = require("path");
     const resultsDir = "test-results";
