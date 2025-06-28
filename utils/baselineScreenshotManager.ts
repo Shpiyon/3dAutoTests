@@ -20,7 +20,6 @@ export class BaselineScreenshotManager {
   ) {
     const platform = process.platform === "win32" ? "win32" : "linux";
 
-    // If testFilePath is provided, use it to determine the correct snapshot directory
     if (testFilePath) {
       const testFileName = path.basename(testFilePath, ".ts");
       const snapshotDir = path.join(

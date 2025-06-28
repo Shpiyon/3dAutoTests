@@ -117,7 +117,6 @@ export class ScreenshotTester {
     const { testName, threshold = 75 } = options;
     const browserName = this.browser.browserType().name();
 
-    // Check if baseline exists, if not create it
     const baselineResult = await this.createBaselineIfMissing(
       testName,
       browserName,
@@ -128,7 +127,6 @@ export class ScreenshotTester {
     const screenshot = await this.takeScreenshot();
     const screenshotPath = await this.saveScreenshot(testName, screenshot);
 
-    // Get test file path from Playwright test context
     const testInfo = require("@playwright/test").test.info();
     const testFilePath = testInfo?.file;
 

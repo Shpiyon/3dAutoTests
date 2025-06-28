@@ -50,6 +50,7 @@ test.describe("Amenities Page Visual Regression Tests", () => {
         screenshotTester,
         `3d-amenity-${label.toLowerCase()}-view`
       );
+      await navigationHelper.navigateToHome();
     });
   }
 });
