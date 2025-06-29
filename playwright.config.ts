@@ -5,10 +5,6 @@ dotenv.config();
 
 export default defineConfig({
   timeout: process.env.CI ? 300000 : 60000,
-  expect: {
-    timeout: 15000,
-    toHaveScreenshot: { threshold: 0.3 },
-  },
   testDir: "./tests",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
@@ -17,6 +13,7 @@ export default defineConfig({
   workers: 1,
   reporter: "html",
   use: {
+    baseURL: "https://interpres.live/src/test_breig/",
     headless: !!process.env.CI,
     launchOptions: {
       args: [
@@ -31,6 +28,12 @@ export default defineConfig({
     video: "retain-on-failure",
     trace: "on-first-retry",
     navigationTimeout: 45000,
+  },
+  metadata: {
+    screenshotDefaults: {
+      aiThreshold: 75,
+      nativeThreshold: 0.9,
+    },
   },
   projects: [
     {

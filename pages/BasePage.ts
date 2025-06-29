@@ -29,9 +29,7 @@ export class BasePage {
         { timeout: 60000 }
       );
 
-      const gotoPromise = this.page.goto(
-        "https://interpres.live/src/test_breig/index.html"
-      );
+      const gotoPromise = this.page.goto("");
 
       await Promise.all([gotoPromise, ksplatPromise, progressBarPromise]);
 
@@ -56,7 +54,12 @@ export class BasePage {
   }
 
   async startPage() {
-    await this.waitFor3DSceneLoad();
-    await this.page.waitForLoadState("domcontentloaded");
+    if (process.env.CI) {
+      await this.page.goto("");
+      //await this.page.waitForLoadState("networkidle");
+    } else {
+      await this.waitFor3DSceneLoad();
+      await this.page.waitForLoadState("domcontentloaded");
+    }
   }
 }

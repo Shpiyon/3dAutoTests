@@ -4,10 +4,12 @@ import {
   AIScreenshotAnalyzer,
   ComparisonAnalysisResult,
 } from "./aiScreenshotAnalyzer";
+import { getScreenshotDefaults } from "./configUtils";
 
 export interface ScreenshotTestOptions {
   testName: string;
   threshold?: number;
+  element?: any;
 }
 
 export interface ScreenshotTestResult {
@@ -17,7 +19,6 @@ export interface ScreenshotTestResult {
   nativeResult?: { passed: boolean; diffPath?: string };
   screenshotPath?: string;
   baselinePath?: string;
-  comparisonMode: "ai" | "native";
 }
 
 export class ScreenshotTester {
@@ -26,7 +27,6 @@ export class ScreenshotTester {
   async runScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
-    await this.page.waitForLoadState("networkidle");
     return process.env.ENABLE_AI_ANALYSIS === "true"
       ? this.runAIScreenshotTest(options)
       : this.runNativeScreenshotTest(options);
@@ -35,7 +35,7 @@ export class ScreenshotTester {
   async createBaselineIfMissing(
     testName: string,
     browserName: string,
-    comparisonMode: "ai" | "native"
+    options?: { element?: any }
   ): Promise<ScreenshotTestResult | null> {
     const testInfo = require("@playwright/test").test.info();
     const testFilePath = testInfo?.file;
@@ -46,7 +46,7 @@ export class ScreenshotTester {
       return null;
     }
 
-    const screenshot = await this.takeScreenshot();
+    const screenshot = await this.takeScreenshot(options);
     const screenshotPath = await this.saveScreenshot(testName, screenshot);
 
     await BaselineScreenshotManager.saveBaseline(
@@ -68,33 +68,32 @@ export class ScreenshotTester {
         browserName,
         testFilePath
       ),
-      comparisonMode,
     };
   }
 
   private async runNativeScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
-    const { testName } = options;
+    const defaults = getScreenshotDefaults();
+    const { testName, threshold = defaults.nativeThreshold, element } = options;
     const browserName = this.browser.browserType().name();
 
     const baselineResult = await this.createBaselineIfMissing(
       testName,
       browserName,
-      "native"
+      { element }
     );
     if (baselineResult) return baselineResult;
 
     try {
       await expect(this.page).toHaveScreenshot(`${testName}.png`, {
         fullPage: true,
-        threshold: 0.9,
+        threshold,
       });
       return {
         success: true,
         isBaseline: false,
         nativeResult: { passed: true },
-        comparisonMode: "native",
       };
     } catch {
       const testInfo = require("@playwright/test").test.info();
@@ -106,7 +105,6 @@ export class ScreenshotTester {
           diffPath: `${testInfo.outputDir}/${options.testName}-diff.png`,
         },
         screenshotPath: `${testInfo.outputDir}/${options.testName}-actual.png`,
-        comparisonMode: "native",
       };
     }
   }
@@ -114,17 +112,18 @@ export class ScreenshotTester {
   private async runAIScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
-    const { testName, threshold = 75 } = options;
+    const defaults = getScreenshotDefaults();
+    const { testName, threshold = defaults.aiThreshold, element } = options;
     const browserName = this.browser.browserType().name();
 
     const baselineResult = await this.createBaselineIfMissing(
       testName,
       browserName,
-      "ai"
+      { element }
     );
     if (baselineResult) return baselineResult;
 
-    const screenshot = await this.takeScreenshot();
+    const screenshot = await this.takeScreenshot({ element });
     const screenshotPath = await this.saveScreenshot(testName, screenshot);
 
     const testInfo = require("@playwright/test").test.info();
@@ -155,21 +154,37 @@ export class ScreenshotTester {
         browserName,
         testFilePath
       ),
-      comparisonMode: "ai",
     };
   }
 
-  async takeScreenshot(): Promise<Buffer> {
+  async takeScreenshot(options?: { element?: any }): Promise<Buffer> {
+    return options?.element
+      ? await this.takeElementScreenshot(options.element)
+      : await this.takeFullPageScreenshot();
+  }
+
+  private async takeElementScreenshot(element: any): Promise<Buffer> {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
-        return await this.page.screenshot({ fullPage: true, type: "png" });
-      } catch (err) {
-        if (attempt === 3)
-          throw err instanceof Error ? err : new Error(String(err));
+        return await element.screenshot();
+      } catch (error) {
+        if (attempt === 3) throw error;
         await this.page.waitForTimeout(1000);
       }
     }
-    throw new Error("Screenshot failed");
+    throw new Error("Element screenshot failed");
+  }
+
+  private async takeFullPageScreenshot(): Promise<Buffer> {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        return await this.page.screenshot();
+      } catch (error) {
+        if (attempt === 3) throw error;
+        await this.page.waitForTimeout(1000);
+      }
+    }
+    throw new Error("Full page screenshot failed");
   }
 
   async saveScreenshot(testName: string, screenshot: Buffer): Promise<string> {

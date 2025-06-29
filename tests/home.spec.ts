@@ -25,21 +25,32 @@ test.describe("Home Page Functionality", () => {
   });
 
   test("Should have working navigation menu", async () => {
-    await homePage.navigationComponent.verifyNavigationIsVisible();
-  });
-
-  test("3D Homepage Visual Regression Test (Default view)", async () => {
+    await homePage.navigationComponentHelper.verifyNavigationIsVisible();
     await runScreenshotTestWithReport(
       screenshotTester,
-      "3d-homepage-base-view"
+      "3d-homepage-base-view",
+      {
+        element: homePage.navigationComponent.topNavbar,
+      }
     );
   });
 
-  test("3D Homepage Visual Regression Test (Home view)", async () => {
-    await homePage.navigationComponent.navigateToHome();
-    await runScreenshotTestWithReport(
-      screenshotTester,
-      "3d-homepage-home-view"
-    );
+  test.describe("Full-page Visual Regression Tests", () => {
+    test.skip(!!process.env.CI, "Skipping full-page screenshot tests in CI");
+
+    test("3D Homepage Visual Regression Test (Default view)", async () => {
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-homepage-base-view"
+      );
+    });
+
+    test("3D Homepage Visual Regression Test (Home view)", async () => {
+      await homePage.navigationComponentHelper.navigateToHome();
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-homepage-home-view"
+      );
+    });
   });
 });

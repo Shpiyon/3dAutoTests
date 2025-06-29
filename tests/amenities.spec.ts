@@ -46,10 +46,21 @@ test.describe("Amenities Page Visual Regression Tests", () => {
       );
       await amenitiesHelper.expectAmenityCardVisibleWithTitle(label);
 
-      await runScreenshotTestWithReport(
-        screenshotTester,
-        `3d-amenity-${label.toLowerCase()}-view`
-      );
+      if (process.env.CI) {
+        await runScreenshotTestWithReport(
+          screenshotTester,
+          `3d-amenity-${label.toLowerCase()}-view`,
+          {
+            element: amenitiesPage.amenitieCard,
+          }
+        );
+      } else {
+        await runScreenshotTestWithReport(
+          screenshotTester,
+          `3d-amenity-${label.toLowerCase()}-view`
+        );
+      }
+
       await navigationHelper.navigateToHome();
     });
   }

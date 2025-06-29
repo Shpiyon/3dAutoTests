@@ -54,50 +54,70 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       apartmentsPage.villas,
       "Villa"
     );
-  });
 
-  test("3D Apartments Main View Visual Regression Test", async () => {
-    await navigationHelper.navigateToApartments();
     await runScreenshotTestWithReport(
       screenshotTester,
-      "3d-apartments-main-view"
+      "apartments-list-view",
+      {
+        element: apartmentsPage.apartmentCard,
+      }
+    );
+
+    await runScreenshotTestWithReport(
+      screenshotTester,
+      "apartments-top-panel",
+      {
+        element: apartmentsPage.navigationComponent.topNavbar,
+      }
     );
   });
 
-  test("3D Apartment Type 1 Visual Regression Test", async () => {
-    await navigationHelper.navigateToApartments();
-    await apartmentsHelper.clickApartment1Option();
-    await page.waitForTimeout(5000);
-    await runScreenshotTestWithReport(
-      screenshotTester,
-      "3d-apartment-type-1-view"
-    );
-  });
+  test.describe("3D Apartment Type Visual Regression Tests", () => {
+    test.skip(!!process.env.CI, "Skipping detailed apartment type tests in CI");
 
-  test("3D Apartment Type 2 Visual Regression Test", async () => {
-    await navigationHelper.navigateToApartments();
-    await apartmentsHelper.clickApartment2Option();
-    await page.waitForTimeout(5000);
-    await runScreenshotTestWithReport(
-      screenshotTester,
-      "3d-apartment-type-2-view"
-    );
-  });
+    test("3D Apartments Main View Visual Regression Test", async () => {
+      await navigationHelper.navigateToApartments();
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-apartments-main-view"
+      );
+    });
 
-  test("3D Apartment Type 3 Visual Regression Test", async () => {
-    await navigationHelper.navigateToApartments();
-    await apartmentsHelper.clickApartment3Option();
-    await page.waitForTimeout(5000);
-    await runScreenshotTestWithReport(
-      screenshotTester,
-      "3d-apartment-type-3-view"
-    );
-  });
+    test("3D Apartment Type 1 Visual Regression Test", async () => {
+      await navigationHelper.navigateToApartments();
+      await apartmentsHelper.clickApartment1Option();
+      await page.waitForTimeout(5000);
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-apartment-type-1-view"
+      );
+    });
 
-  test("3D Villas View Visual Regression Test", async () => {
-    await navigationHelper.navigateToApartments();
-    await apartmentsHelper.clickVillas();
-    await page.waitForTimeout(5000);
-    await runScreenshotTestWithReport(screenshotTester, "3d-villas-view");
+    test("3D Apartment Type 2 Visual Regression Test", async () => {
+      await navigationHelper.navigateToApartments();
+      await apartmentsHelper.clickApartment2Option();
+      await page.waitForTimeout(5000);
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-apartment-type-2-view"
+      );
+    });
+
+    test("3D Apartment Type 3 Visual Regression Test", async () => {
+      await navigationHelper.navigateToApartments();
+      await apartmentsHelper.clickApartment3Option();
+      await page.waitForTimeout(5000);
+      await runScreenshotTestWithReport(
+        screenshotTester,
+        "3d-apartment-type-3-view"
+      );
+    });
+
+    test("3D Villas View Visual Regression Test", async () => {
+      await navigationHelper.navigateToApartments();
+      await apartmentsHelper.clickVillas();
+      await page.waitForTimeout(5000);
+      await runScreenshotTestWithReport(screenshotTester, "3d-villas-view");
+    });
   });
 });

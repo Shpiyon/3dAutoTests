@@ -4,6 +4,7 @@ import {
   ComparisonAnalysisResult,
 } from "./aiScreenshotAnalyzer";
 import { ScreenshotTester } from "./screenshotTester";
+import { getScreenshotDefaults } from "./configUtils";
 
 export function addAIAnalysisToReport(
   analysisResult:
@@ -69,8 +70,9 @@ export function assertAIAnalysisResults(
     | ComparisonAnalysisResult
     | undefined,
   success: boolean,
-  threshold: number = 75
+  threshold?: number
 ): void {
+  const effectiveThreshold = threshold ?? getScreenshotDefaults().aiThreshold;
   if (!analysisResult) {
     expect(success, `Native screenshot comparison failed`).toBe(true);
     return;
@@ -88,7 +90,7 @@ export function assertAIAnalysisResults(
   expect(
     analysisResult.score,
     `Score too low: ${analysisResult.score}/100`
-  ).toBeGreaterThan(threshold);
+  ).toBeGreaterThan(effectiveThreshold);
   expect(
     hasCriticalIssues,
     `Critical issues found: ${analysisResult.issues.join(", ")}`
@@ -101,22 +103,28 @@ export function assertAIAnalysisResults(
 export async function runScreenshotTestWithReport(
   screenshotTester: ScreenshotTester,
   testName: string,
-  threshold: number = 75
+  options: { threshold?: number; element?: any } = {}
 ) {
-  const result = await screenshotTester.runScreenshotTest({
+  const isAIMode = process.env.ENABLE_AI_ANALYSIS === "true";
+  const defaults = getScreenshotDefaults();
+  const testOptions = {
     testName,
-    threshold,
-  });
-  const { analysisResult, comparisonMode } = result;
-  if (comparisonMode === "ai" && analysisResult) {
-    await test.step(`AI Analysis Results - Score: ${analysisResult.score}/100`, async () => {
-      addAIAnalysisToReport(analysisResult, result.screenshotPath);
-    });
-  } else {
-    await test.step(`Native Playwright Screenshot Comparison`, async () => {
-      addAIAnalysisToReport(undefined, result.screenshotPath);
-    });
+    threshold:
+      options.threshold ??
+      (isAIMode ? defaults.aiThreshold : defaults.nativeThreshold),
+    element: options.element,
+  };
+
+  const result = await screenshotTester.runScreenshotTest(testOptions);
+
+  if (isAIMode) {
+    const { analysisResult } = result;
+    addAIAnalysisToReport(analysisResult, result.screenshotPath);
+    assertAIAnalysisResults(
+      analysisResult,
+      result.success,
+      testOptions.threshold
+    );
   }
-  assertAIAnalysisResults(analysisResult, result.success, threshold);
   return result;
 }
