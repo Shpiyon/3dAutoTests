@@ -47,9 +47,6 @@ test.describe("Amenities Page Visual Regression Tests", () => {
         console.log(`CI Mode: Testing amenity ${amenity.label}`);
 
         try {
-          // Wait for page to be fully loaded
-          await page.waitForLoadState("networkidle", { timeout: 30000 });
-
           // Wait for the specific pin to be visible and clickable
           const pin = amenitiesPage[amenity.pin as keyof AmenitiesPage] as any;
           console.log(`Waiting for pin: ${amenity.pin}`);
