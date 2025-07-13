@@ -13,7 +13,10 @@ export class AmenitiesPageHelper {
   async clickPin(pin: Locator) {
     await expect(pin).toBeVisible();
     await pin.click();
-    await this.page.waitForTimeout(5000); // Allow 3D transitions to complete
+
+    if (process.env.CI !== "true") {
+      await this.page.waitForTimeout(5000); // Allow 3D transitions to complete
+    }
   }
 
   async expectAmenityCardVisibleWithTitle(expectedTitle: string) {
