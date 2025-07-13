@@ -54,9 +54,8 @@ export class BasePage {
   }
 
   async startPage() {
-    if (process.env.CI) {
+    if (process.env.CI === "true") {
       await this.page.goto("");
-      //await this.page.waitForLoadState("networkidle");
     } else {
       await this.waitFor3DSceneLoad();
       await this.page.waitForLoadState("domcontentloaded");

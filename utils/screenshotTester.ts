@@ -34,76 +34,9 @@ export class ScreenshotTester {
       : this.runNativeScreenshotTest(options);
   }
 
-  private async handleBaselineCreation(
-    options: ScreenshotTestOptions
-  ): Promise<ScreenshotTestResult | null> {
-    if (process.env.FORCE_BASELINE_CREATION !== "true") {
-      return null; // Not in baseline creation mode
-    }
-
-    const { testName } = options;
-
-    if (process.env.ENABLE_AI_ANALYSIS === "true") {
-      // AI mode baseline creation
-      const browserName = this.browser.browserType().name();
-      const screenshot = await this.takeScreenshot({
-        element: options.element,
-      });
-      const screenshotPath = await this.saveScreenshot(testName, screenshot);
-
-      const testInfo = require("@playwright/test").test.info();
-      const testFilePath = testInfo?.file;
-
-      await BaselineScreenshotManager.saveBaseline(
-        testName,
-        screenshot,
-        { testName, browserName },
-        testFilePath
-      );
-
-      return {
-        success: true,
-        isBaseline: true,
-        screenshotPath,
-        baselinePath: BaselineScreenshotManager.getBaselinePath(
-          testName,
-          browserName,
-          testFilePath
-        ),
-      };
-    } else {
-      // Native mode baseline creation
-      const defaults = getScreenshotDefaults();
-      const { threshold = defaults.nativeThreshold, element } = options;
-
-      try {
-        await expect(this.page).toHaveScreenshot(`${testName}.png`, {
-          fullPage: !element,
-          threshold,
-        });
-        return {
-          success: true,
-          isBaseline: true,
-          nativeResult: { passed: true },
-        };
-      } catch {
-        // Even if it "fails", it still creates the baseline
-        return {
-          success: true,
-          isBaseline: true,
-          nativeResult: { passed: true },
-        };
-      }
-    }
-  }
-
   private async runNativeScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
-    // Check if we're in baseline creation mode
-    const baselineResult = await this.handleBaselineCreation(options);
-    if (baselineResult) return baselineResult;
-
     const defaults = getScreenshotDefaults();
     const { testName, threshold = defaults.nativeThreshold, element } = options;
 
@@ -134,10 +67,6 @@ export class ScreenshotTester {
   private async runAIScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
-    // Check if we're in baseline creation mode
-    const baselineResult = await this.handleBaselineCreation(options);
-    if (baselineResult) return baselineResult;
-
     const defaults = getScreenshotDefaults();
     const { testName, threshold = defaults.aiThreshold, element } = options;
     const browserName = this.browser.browserType().name();
@@ -156,7 +85,7 @@ export class ScreenshotTester {
 
     if (!baseline) {
       throw new Error(
-        `No baseline found for ${testName}. Run baseline generation first.`
+        `No baseline found for ${testName}. Ensure snapshots are generated first.`
       );
     }
 
