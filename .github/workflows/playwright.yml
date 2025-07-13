@@ -44,6 +44,16 @@ jobs:
       - name: Run tests again (should pass with new snapshots)
         run: npx playwright test --reporter=html,line
 
+      - name: Upload generated snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-snapshots-${{ github.run_number }}
+          path: |
+            tests/**/*-snapshots/
+            test-results/**/*.png
+          retention-days: 7
+
       - name: Test Summary
         if: always()
         run: |
