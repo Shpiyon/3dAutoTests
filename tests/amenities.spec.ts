@@ -52,18 +52,18 @@ test.describe("Amenities Page Visual Regression Tests", () => {
           console.log(`Waiting for pin: ${amenity.pin}`);
           await pin.waitFor({ state: "visible", timeout: 20000 });
 
+          // Click pin and wait for card update
+          await amenitiesHelper.clickPin(pin);
+          await amenitiesHelper.expectAmenityCardVisibleWithTitle(
+            amenity.label
+          );
+
           // Wait for amenity card to be present before interactions
           await amenitiesPage.amenitieCard.waitFor({
             state: "visible",
             timeout: 15000,
           });
           console.log(`Found amenity card for ${amenity.label}`);
-
-          // Click pin and wait for card update
-          await amenitiesHelper.clickPin(pin);
-          await amenitiesHelper.expectAmenityCardVisibleWithTitle(
-            amenity.label
-          );
 
           // Take element screenshot
           await runScreenshotTestWithReport(
