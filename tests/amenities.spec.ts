@@ -46,7 +46,7 @@ test.describe("Amenities Page Visual Regression Tests", () => {
       );
       await amenitiesHelper.expectAmenityCardVisibleWithTitle(amenity.label);
 
-      if (process.env.CI) {
+      if (process.env.CI === "true") {
         await runScreenshotTestWithReport(
           screenshotTester,
           `3d-amenity-${amenity.label.toLowerCase()}-view`,

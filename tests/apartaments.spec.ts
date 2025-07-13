@@ -73,7 +73,10 @@ test.describe("Apartments Page Visual Regression Tests", () => {
   });
 
   test.describe("3D Apartment Type Visual Regression Tests", () => {
-    test.skip(!!process.env.CI, "Skipping detailed apartment type tests in CI");
+    test.skip(
+      process.env.CI === "true",
+      "Skipping detailed apartment type tests in CI"
+    );
 
     test("3D Apartments Main View Visual Regression Test", async () => {
       await navigationHelper.navigateToApartments();

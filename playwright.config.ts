@@ -4,17 +4,17 @@ import { defineConfig, devices } from "@playwright/test";
 dotenv.config();
 
 export default defineConfig({
-  timeout: process.env.CI ? 300000 : 60000,
+  timeout: process.env.CI === "true" ? 300000 : 60000,
   testDir: "./tests",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
-  forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  forbidOnly: process.env.CI === "true",
+  retries: process.env.CI === "true" ? 1 : 0,
   workers: 1,
   reporter: "html",
   use: {
     baseURL: "https://interpres.live/src/test_breig/",
-    headless: !!process.env.CI,
+    headless: process.env.CI === "true",
     launchOptions: {
       args: [
         "--enable-gpu",

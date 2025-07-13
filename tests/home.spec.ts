@@ -36,7 +36,10 @@ test.describe("Home Page Functionality", () => {
   });
 
   test.describe("Full-page Visual Regression Tests", () => {
-    test.skip(!!process.env.CI, "Skipping full-page screenshot tests in CI");
+    test.skip(
+      process.env.CI === "true",
+      "Skipping full-page screenshot tests in CI"
+    );
 
     test("3D Homepage Visual Regression Test (Default view)", async () => {
       await runScreenshotTestWithReport(
