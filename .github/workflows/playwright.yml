@@ -45,23 +45,22 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Create test results directory
-        run: mkdir -p test-results
+      - name: Run tests (expected to fail - will create snapshots)
+        run: npx playwright test --reporter=line
+        continue-on-error: true
 
-      - name: Generate baseline snapshots
-        run: npx playwright test --update-snapshots --reporter=line
-
-      - name: Run Playwright tests
+      - name: Run tests again (should pass with new snapshots)
         run: npx playwright test --reporter=html,line
 
       - name: Test Summary
         if: always()
         run: |
           echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Workflow: Generate baselines → Run tests" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow: First run (creates snapshots) → Second run (validates)" >> $GITHUB_STEP_SUMMARY
           echo "- CI Mode: Element screenshots only" >> $GITHUB_STEP_SUMMARY
           echo "- Browser: Chromium only" >> $GITHUB_STEP_SUMMARY
           echo "- AI Analysis: ${{ env.ENABLE_AI_ANALYSIS }}" >> $GITHUB_STEP_SUMMARY
+          echo "- First run expected to fail (no baselines), second run should pass" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test results
         if: ${{ !cancelled() }}
