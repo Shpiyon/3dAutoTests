@@ -38,18 +38,18 @@ test.describe("Amenities Page Visual Regression Tests", () => {
     { pin: "parkingPin", label: "Parking" },
   ];
 
-  for (const { pin, label } of amenityTests) {
-    test(`Amenity: ${label} - 3D Scene and Card Visual Regression`, async () => {
+  amenityTests.forEach((amenity) => {
+    test(`Amenity: ${amenity.label} - 3D Scene and Card Visual Regression`, async () => {
       await navigationHelper.navigateToAmenities();
       await amenitiesHelper.clickPin(
-        amenitiesPage[pin as keyof AmenitiesPage] as any
+        amenitiesPage[amenity.pin as keyof AmenitiesPage] as any
       );
-      await amenitiesHelper.expectAmenityCardVisibleWithTitle(label);
+      await amenitiesHelper.expectAmenityCardVisibleWithTitle(amenity.label);
 
       if (process.env.CI) {
         await runScreenshotTestWithReport(
           screenshotTester,
-          `3d-amenity-${label.toLowerCase()}-view`,
+          `3d-amenity-${amenity.label.toLowerCase()}-view`,
           {
             element: amenitiesPage.amenitieCard,
           }
@@ -57,11 +57,11 @@ test.describe("Amenities Page Visual Regression Tests", () => {
       } else {
         await runScreenshotTestWithReport(
           screenshotTester,
-          `3d-amenity-${label.toLowerCase()}-view`
+          `3d-amenity-${amenity.label.toLowerCase()}-view`
         );
       }
 
       await navigationHelper.navigateToHome();
     });
-  }
+  });
 });

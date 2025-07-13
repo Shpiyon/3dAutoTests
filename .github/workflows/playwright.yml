@@ -48,12 +48,27 @@ jobs:
       - name: Create test results directory
         run: mkdir -p test-results
 
-      - name: Download existing snapshots
-        uses: actions/download-artifact@v4
-        with:
-          name: playwright-snapshots
-          path: tests/
-        continue-on-error: true
+      - name: Check and remove existing snapshots
+        run: |
+          echo "Cleaning up existing snapshots..."
+          # Remove snapshots from tests directory
+          if [ -d "tests" ]; then
+            find tests -name "*-snapshots" -type d -exec rm -rf {} + 2>/dev/null || true
+            echo "Cleaned snapshots from tests/ directory"
+          fi
+          # Remove snapshots from test file locations (Playwright default)
+          find . -name "*-snapshots" -type d -not -path "./node_modules/*" -exec rm -rf {} + 2>/dev/null || true
+          # Remove test results
+          if [ -d "test-results" ]; then
+            rm -rf test-results/*
+            echo "Cleaned test-results/ directory"
+          fi
+          echo "Snapshot cleanup complete"
+
+      - name: Generate baseline snapshots
+        run: npx playwright test --reporter=line
+        env:
+          FORCE_BASELINE_CREATION: true
 
       - name: Run Playwright tests
         run: npx playwright test --reporter=html,line
@@ -62,9 +77,11 @@ jobs:
         if: always()
         run: |
           echo "## Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Workflow: Clean snapshots → Generate baselines → Run tests" >> $GITHUB_STEP_SUMMARY
           echo "- CI Mode: Element screenshots only" >> $GITHUB_STEP_SUMMARY
           echo "- Browser: Chromium only" >> $GITHUB_STEP_SUMMARY
           echo "- AI Analysis: ${{ env.ENABLE_AI_ANALYSIS }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Baseline Generation: Fresh snapshots created with --update-snapshots" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test results
         if: ${{ !cancelled() }}
@@ -80,12 +97,4 @@ jobs:
         with:
           name: playwright-report-${{ github.run_number }}
           path: playwright-report/
-          retention-days: 7
-
-      - name: Upload Playwright snapshots
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-snapshots-${{ github.run_number }}
-          path: tests/**/*-snapshots/
           retention-days: 7
