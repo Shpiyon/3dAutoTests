@@ -10,7 +10,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: process.env.CI === "true",
   retries: process.env.CI === "true" ? 1 : 0,
-  workers: 1,
+  workers: process.env.CI === "true" ? 1 : undefined,
   reporter: "html",
   use: {
     baseURL: "https://interpres.live/src/test_breig/",

@@ -41,10 +41,16 @@ export class ScreenshotTester {
     const { testName, threshold = defaults.nativeThreshold, element } = options;
 
     try {
-      await expect(this.page).toHaveScreenshot(`${testName}.png`, {
-        fullPage: !element,
-        threshold,
-      });
+      if (element) {
+        await expect(element).toHaveScreenshot(`${testName}.png`, {
+          threshold,
+        });
+      } else {
+        await expect(this.page).toHaveScreenshot(`${testName}.png`, {
+          fullPage: true,
+          threshold,
+        });
+      }
       return {
         success: true,
         isBaseline: false,
