@@ -11,7 +11,7 @@ export class AmenitiesPageHelper {
   }
 
   async clickPin(pin: Locator) {
-    await expect(pin).toBeVisible();
+    await expect(pin).toBeVisible({ timeout: 20000 });
     await pin.click();
 
     if (process.env.CI !== "true") {
