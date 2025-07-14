@@ -11,8 +11,8 @@ export class AmenitiesPageHelper {
   }
 
   async clickPin(pin: Locator) {
-    await expect(pin).toBeVisible({ timeout: 20000 });
-    await pin.click();
+    await expect(pin).toBeVisible({ timeout: 10000 });
+    await pin.click({ force: true });
 
     if (process.env.CI !== "true") {
       await this.page.waitForTimeout(5000); // Allow 3D transitions to complete
