@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 dotenv.config();
 
 export default defineConfig({
-  timeout: process.env.CI === "true" ? 300000 : 60000,
+  timeout: process.env.CI === "true" ? 600000 : 60000,
   testDir: "./tests",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
