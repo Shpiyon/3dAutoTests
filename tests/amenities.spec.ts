@@ -18,53 +18,6 @@ test.describe("Amenities Page Visual Regression Tests", () => {
     await BaselineScreenshotManager.initializeBaselines();
     context = await browser.newContext();
     page = await context.newPage();
-
-    // Block 3D assets in CI to prevent page crashes during UI interactions
-    if (process.env.CI === "true") {
-      console.log(
-        "🚫 CI Mode: Blocking 3D assets to prevent page instability..."
-      );
-
-      await page.route("**/*", async (route) => {
-        const url = route.request().url();
-
-        // Block 3D model files and WebGL-heavy assets
-        if (
-          url.includes(".gltf") ||
-          url.includes(".glb") ||
-          url.includes(".obj") ||
-          url.includes(".fbx") ||
-          url.includes("three.js") ||
-          url.includes("webgl") ||
-          url.includes("babylon") ||
-          url.match(/\.(bin|drc)$/)
-        ) {
-          console.log(`🚫 Blocked 3D asset: ${url.split("/").pop()}`);
-          await route.abort();
-          return;
-        }
-
-        // Allow UI assets (images, CSS, JS for UI components)
-        await route.continue();
-      });
-
-      // Inject script to disable WebGL context creation
-      await page.addInitScript(() => {
-        const originalGetContext = HTMLCanvasElement.prototype.getContext;
-        (HTMLCanvasElement.prototype.getContext as any) = function (
-          this: HTMLCanvasElement,
-          contextType: string,
-          ...args: any[]
-        ) {
-          if (contextType === "webgl" || contextType === "webgl2") {
-            console.log("🚫 Blocked WebGL context creation in CI");
-            return null;
-          }
-          return originalGetContext.call(this, contextType as any, ...args);
-        };
-      });
-    }
-
     amenitiesPage = new AmenitiesPage(page);
     amenitiesHelper = new AmenitiesPageHelper(page);
     screenshotTester = new ScreenshotTester(page, browser);
