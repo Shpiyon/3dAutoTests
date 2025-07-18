@@ -14,21 +14,39 @@ test.describe("Amenities Page Visual Regression Tests", () => {
   let page: Page;
   let context: BrowserContext;
 
-  test.beforeAll(async ({ browser }) => {
-    await BaselineScreenshotManager.initializeBaselines();
-    context = await browser.newContext();
-    page = await context.newPage();
-    amenitiesPage = new AmenitiesPage(page);
-    amenitiesHelper = new AmenitiesPageHelper(page);
-    screenshotTester = new ScreenshotTester(page, browser);
-    navigationHelper = new NavigationComponentHelper(page);
-    await amenitiesPage.startPage();
-  });
+  if (process.env.CI === "true") {
+    test.beforeEach(async ({ browser }) => {
+      await BaselineScreenshotManager.initializeBaselines();
+      context = await browser.newContext();
+      page = await context.newPage();
+      amenitiesPage = new AmenitiesPage(page);
+      amenitiesHelper = new AmenitiesPageHelper(page);
+      screenshotTester = new ScreenshotTester(page, browser);
+      navigationHelper = new NavigationComponentHelper(page);
+      await amenitiesPage.startPage();
+    });
 
-  test.afterAll(async () => {
-    await page.close();
-    await context.close();
-  });
+    test.afterEach(async () => {
+      await page.close();
+      await context.close();
+    });
+  } else {
+    test.beforeAll(async ({ browser }) => {
+      await BaselineScreenshotManager.initializeBaselines();
+      context = await browser.newContext();
+      page = await context.newPage();
+      amenitiesPage = new AmenitiesPage(page);
+      amenitiesHelper = new AmenitiesPageHelper(page);
+      screenshotTester = new ScreenshotTester(page, browser);
+      navigationHelper = new NavigationComponentHelper(page);
+      await amenitiesPage.startPage();
+    });
+
+    test.afterAll(async () => {
+      await page.close();
+      await context.close();
+    });
+  }
 
   const amenityTests = [
     { pin: "gymPin", label: "Gym" },
@@ -61,7 +79,7 @@ test.describe("Amenities Page Visual Regression Tests", () => {
         );
       }
 
-      await navigationHelper.navigateToHome();
+      //await navigationHelper.navigateToHome();
     });
   });
 });
