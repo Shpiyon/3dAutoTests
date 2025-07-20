@@ -37,11 +37,10 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Run tests (expected to fail - will create snapshots)
-        run: npx playwright test --reporter=line
-        continue-on-error: true
+      - name: Update snapshots
+        run: npx playwright test --update-screenshots --reporter=line
 
-      - name: Run tests again (should pass with new snapshots)
+      - name: Run tests
         run: npx playwright test --reporter=html,line
 
       - name: Upload generated snapshots
