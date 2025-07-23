@@ -1,52 +1,181 @@
+// AI Models and Types
+export const AI_PROVIDERS = { CLAUDE: "claude", OPENAI: "openai" } as const;
+
+export const CLAUDE_MODELS = {
+  OPUS_4: "claude-opus-4-20250514",
+  SONNET_4: "claude-sonnet-4-20250514",
+  SONNET_3_5: "claude-3-5-sonnet-latest",
+  HAIKU_3_5: "claude-3-5-haiku-latest",
+} as const;
+
+export const OPENAI_MODELS = {
+  GPT_4O: "gpt-4o",
+  GPT_4O_MINI: "gpt-4o-mini",
+} as const;
+
+export type AIProvider = (typeof AI_PROVIDERS)[keyof typeof AI_PROVIDERS];
+export type ClaudeModel = (typeof CLAUDE_MODELS)[keyof typeof CLAUDE_MODELS];
+export type OpenAIModel = (typeof OPENAI_MODELS)[keyof typeof OPENAI_MODELS];
+export type AIModel = ClaudeModel | OpenAIModel;
+
 export interface ScreenshotAnalysisResult {
   isValid: boolean;
   analysis: string;
   issues: string[];
   score: number;
+  model?: string;
 }
 
 export interface ComparisonAnalysisResult extends ScreenshotAnalysisResult {
   comparisonType: "baseline" | "regression";
   visualDifferences: string[];
   regressionSeverity: "low" | "medium" | "high" | "critical";
-  baselineMetadata?: {
-    createdAt: string;
-    browserName: string;
-    url: string;
-  };
+}
+
+interface AIConfig {
+  provider?: AIProvider;
+  model?: AIModel;
+  maxTokens?: number;
 }
 
 export class AIScreenshotAnalyzer {
-  private static createErrorResult(
-    errorMessage: string
-  ): ScreenshotAnalysisResult {
-    return {
-      isValid: false,
-      analysis: `Analysis failed: ${errorMessage}`,
-      issues: ["Service unavailable"],
-      score: 0,
-    };
-  }
-
-  private static createSkippedResult(): ScreenshotAnalysisResult {
-    return {
-      isValid: true,
-      analysis: "AI analysis skipped - no API key provided",
-      issues: [],
-      score: 75,
-    };
-  }
-
-  static async analyzeWithOpenAI(
+  // Main entry point for screenshot analysis
+  static async analyze3DVisualizationPage(
     base64Image: string,
-    prompt: string
+    config?: AIConfig
   ): Promise<ScreenshotAnalysisResult> {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return this.createSkippedResult();
-    }
+    const { provider, model, maxTokens } = { ...this.getDefaults(), ...config };
+
+    const prompt = `Analyze this 3D real estate website screenshot for:
+1. Navigation menu visibility and alignment
+2. 3D canvas/viewer loading and display
+3. Layout quality and visual bugs
+4. Overall user experience
+
+Respond EXACTLY in this format:
+RESULT: [PASS or FAIL]
+SCORE: [0-100]
+ISSUES: [issues list or "none"]
+ANALYSIS: [explanation]`;
+
+    console.log(`🤖 AI Analysis: ${provider} (${model})`);
 
     try {
+      const analysis = await this.callAPI(
+        provider,
+        model,
+        base64Image,
+        prompt,
+        maxTokens
+      );
+      return this.createResult(analysis, model);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      return message.includes("No API key")
+        ? {
+            isValid: true,
+            analysis: "AI analysis skipped - no API key",
+            issues: [],
+            score: 75,
+            model,
+          }
+        : this.createResult(message, model, true);
+    }
+  }
+
+  // Baseline comparison wrapper
+  static async compareWithBaseline(
+    currentBase64: string,
+    _baselineBase64: string,
+    _testContext: { testName: string; url: string; browserName: string },
+    config?: AIConfig
+  ): Promise<ComparisonAnalysisResult> {
+    const result = await this.analyze3DVisualizationPage(currentBase64, config);
+    return {
+      ...result,
+      comparisonType: "regression" as const,
+      visualDifferences: this.extractPatterns(result.analysis, [
+        "different",
+        "changed",
+        "missing",
+      ]),
+      regressionSeverity: this.getSeverity(result.analysis),
+    };
+  }
+
+  // Configuration from environment
+  private static getDefaults(): Required<AIConfig> {
+    const provider =
+      (process.env.AI_PROVIDER as AIProvider) || AI_PROVIDERS.CLAUDE;
+    const modelString = process.env.AI_MODEL || CLAUDE_MODELS.OPUS_4;
+    const maxTokens = parseInt(process.env.AI_MAX_TOKENS || "1000");
+
+    const model =
+      provider === AI_PROVIDERS.CLAUDE
+        ? Object.values(CLAUDE_MODELS).includes(modelString as ClaudeModel)
+          ? (modelString as ClaudeModel)
+          : CLAUDE_MODELS.OPUS_4
+        : Object.values(OPENAI_MODELS).includes(modelString as OpenAIModel)
+        ? (modelString as OpenAIModel)
+        : OPENAI_MODELS.GPT_4O;
+
+    return { provider, model, maxTokens };
+  }
+
+  // API calls to Claude or OpenAI
+  private static async callAPI(
+    provider: AIProvider,
+    model: AIModel,
+    base64Image: string,
+    prompt: string,
+    maxTokens: number
+  ): Promise<string> {
+    const apiKey =
+      provider === AI_PROVIDERS.CLAUDE
+        ? process.env.CLAUDE_API_KEY
+        : process.env.OPENAI_API_KEY;
+
+    if (!apiKey) throw new Error("No API key provided");
+
+    if (provider === AI_PROVIDERS.CLAUDE) {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: "image/png",
+                    data: base64Image,
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Claude API Error (${response.status}):`, errorText);
+        throw new Error(`Claude API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.content[0].text;
+    } else {
       const response = await fetch(
         "https://api.openai.com/v1/chat/completions",
         {
@@ -56,7 +185,8 @@ export class AIScreenshotAnalyzer {
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            model: "gpt-4-vision-preview",
+            model,
+            max_tokens: maxTokens,
             messages: [
               {
                 role: "user",
@@ -72,172 +202,107 @@ export class AIScreenshotAnalyzer {
                 ],
               },
             ],
-            max_tokens: 1000,
           }),
         }
       );
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(`OpenAI API error: ${response.statusText}`);
-      }
-
       const data = await response.json();
-      const analysis = data.choices[0].message.content;
-
-      return this.parseAnalysisResult(analysis);
-    } catch (error) {
-      return this.createErrorResult(
-        error instanceof Error ? error.message : "Unknown error"
-      );
+      return data.choices[0].message.content;
     }
   }
 
-  static async analyze3DVisualizationPage(
-    base64Image: string
-  ): Promise<ScreenshotAnalysisResult> {
-    const prompt = `
-Analyze this 3D real estate website screenshot. Check:
-1. Navigation menu visibility and alignment
-2. 3D canvas/viewer loading and display
-3. Layout quality and professional appearance
-4. Any visual bugs or broken elements
-5. Overall user experience
-
-Provide: PASS/FAIL, specific issues, and score (0-100).
-    `;
-
-    return this.analyzeWithOpenAI(base64Image, prompt);
-  }
-
-  static async compareWithBaseline(
-    currentBase64: string,
-    baselineBase64: string,
-    testContext: {
-      testName: string;
-      url: string;
-      browserName: string;
-    }
-  ): Promise<ComparisonAnalysisResult> {
-    const prompt = `
-Compare these two 3D website screenshots (baseline vs current):
-- Identify visual differences (layout, colors, elements, 3D rendering)
-- Assess severity: CRITICAL (broken functionality), HIGH (major layout issues), 
-  MEDIUM (noticeable changes), LOW (minor differences)
-- Provide PASS/FAIL and score (0-100)
-
-If images are substantially identical, confirm no significant differences.
-    `;
-
-    try {
-      const result = await this.analyzeWithOpenAI(
-        `${baselineBase64},${currentBase64}`,
-        prompt
-      );
-
-      const visualDifferences = this.extractDifferences(result.analysis);
-      const regressionSeverity = this.getSeverity(result.analysis);
-
-      return {
-        ...result,
-        comparisonType: "regression",
-        visualDifferences,
-        regressionSeverity,
-        baselineMetadata: {
-          createdAt: new Date().toISOString(),
-          browserName: testContext.browserName,
-          url: testContext.url,
-        },
-      };
-    } catch (error) {
-      return {
-        ...this.createErrorResult(
-          error instanceof Error ? error.message : "Unknown error"
-        ),
-        comparisonType: "baseline",
-        visualDifferences: [],
-        regressionSeverity: "critical" as const,
-      };
-    }
-  }
-
-  private static parseAnalysisResult(
-    analysis: string
+  // Create result object from AI response
+  private static createResult(
+    analysis: string,
+    model: string,
+    isError = false
   ): ScreenshotAnalysisResult {
-    const lowerAnalysis = analysis.toLowerCase();
-    const isValid = !["error", "missing", "broken", "fail"].some((word) =>
-      lowerAnalysis.includes(word)
-    );
+    if (isError) {
+      return {
+        isValid: false,
+        analysis: `Analysis failed: ${analysis}`,
+        issues: ["Service unavailable"],
+        score: 0,
+        model,
+      };
+    }
 
-    const issues = this.extractIssues(analysis);
-    const score = this.calculateScore(analysis, issues);
+    // Parse structured response
+    const resultMatch = analysis.match(/RESULT:\s*(PASS|FAIL)/i);
+    const scoreMatch = analysis.match(/SCORE:\s*(\d+)/i);
+    const issuesMatch = analysis.match(/ISSUES:\s*([^\n]+)/i);
 
-    return { isValid, analysis, issues, score };
+    if (resultMatch && scoreMatch) {
+      const isValid = resultMatch[1].toUpperCase() === "PASS";
+      const score = parseInt(scoreMatch[1]);
+      const issuesText = issuesMatch?.[1] || "";
+      const issues = issuesText.toLowerCase().includes("none")
+        ? []
+        : issuesText
+            .split(",")
+            .map((i) => i.trim())
+            .filter((i) => i.length > 0);
+
+      return { isValid, analysis, issues, score, model };
+    }
+
+    // Fallback parsing
+    console.warn("AI response not in expected format, using fallback parsing");
+    const lower = analysis.toLowerCase();
+    const failureKeywords = [
+      "fail",
+      "error",
+      "broken",
+      "critical",
+      "major issue",
+    ];
+    const isValid = !failureKeywords.some((keyword) => lower.includes(keyword));
+    const issues = this.extractPatterns(analysis, [
+      "missing",
+      "broken",
+      "error",
+      "problem",
+    ]);
+    const score = this.calculateScore(lower, issues.length);
+
+    return { isValid, analysis, issues, score, model };
   }
 
-  private static extractDifferences(analysis: string): string[] {
-    const patterns = [
-      "different",
-      "changed",
-      "missing",
-      "added",
-      "moved",
-      "shifted",
-    ];
-    const sentences = analysis.split(/[.!?]+/);
-
+  // Extract patterns from text
+  private static extractPatterns(text: string, patterns: string[]): string[] {
     return [
       ...new Set(
-        sentences
+        text
+          .split(/[.!?]+/)
           .filter((sentence) =>
             patterns.some((pattern) => sentence.toLowerCase().includes(pattern))
           )
           .map((sentence) => sentence.trim())
-          .filter((sentence) => sentence.length > 0)
+          .filter((sentence) => sentence.length > 10)
       ),
     ];
   }
 
-  private static getSeverity(
-    analysis: string
-  ): "low" | "medium" | "high" | "critical" {
-    const lower = analysis.toLowerCase();
+  // Calculate fallback score
+  private static calculateScore(text: string, issueCount: number): number {
+    let score = 100 - issueCount * 15;
+    if (text.includes("critical")) score -= 40;
+    if (text.includes("broken") || text.includes("fail")) score -= 25;
+    if (text.includes("excellent")) score += 10;
+    return Math.max(0, Math.min(100, score));
+  }
 
+  // Determine severity level
+  private static getSeverity(
+    text: string
+  ): "low" | "medium" | "high" | "critical" {
+    const lower = text.toLowerCase();
     if (lower.includes("critical") || lower.includes("broken"))
       return "critical";
-    if (lower.includes("high") || lower.includes("significant")) return "high";
-    if (lower.includes("medium") || lower.includes("noticeable"))
-      return "medium";
+    if (lower.includes("high") || lower.includes("major")) return "high";
+    if (lower.includes("medium")) return "medium";
     return "low";
-  }
-
-  private static extractIssues(analysis: string): string[] {
-    const patterns = ["missing", "broken", "error", "fail", "problem", "issue"];
-    const sentences = analysis.split(/[.!?]+/);
-
-    return [
-      ...new Set(
-        sentences
-          .filter((sentence) =>
-            patterns.some((pattern) => sentence.toLowerCase().includes(pattern))
-          )
-          .map((sentence) => sentence.trim())
-          .filter((sentence) => sentence.length > 0)
-      ),
-    ];
-  }
-  private static calculateScore(analysis: string, issues: string[]): number {
-    let score = 100 - issues.length * 10;
-    const lower = analysis.toLowerCase();
-
-    // Deductions
-    if (lower.includes("critical")) score -= 30;
-    if (lower.includes("major")) score -= 20;
-    if (lower.includes("broken")) score -= 25;
-
-    // Bonuses
-    if (lower.includes("excellent")) score += 10;
-    if (lower.includes("good")) score += 5;
-
-    return Math.max(0, Math.min(100, score));
   }
 }

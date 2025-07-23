@@ -1,7 +1,6 @@
 import { test, Page, BrowserContext } from "@playwright/test";
 import { HomePage } from "../pages/HomePage";
 import { ScreenshotTester } from "../utils/screenshotTester";
-import { BaselineScreenshotManager } from "../utils/baselineScreenshotManager";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 
 test.describe("Home Page Functionality", () => {
@@ -11,12 +10,11 @@ test.describe("Home Page Functionality", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    await BaselineScreenshotManager.initializeBaselines();
     context = await browser.newContext();
     page = await context.newPage();
     homePage = new HomePage(page);
     await homePage.startPage();
-    screenshotTester = new ScreenshotTester(page, browser);
+    screenshotTester = new ScreenshotTester(page);
   });
 
   test.afterAll(async () => {
@@ -28,7 +26,7 @@ test.describe("Home Page Functionality", () => {
     await homePage.navigationComponentHelper.verifyNavigationIsVisible();
     await runScreenshotTestWithReport(
       screenshotTester,
-      "3d-homepage-base-view",
+      "3d-homepage-navBar-element",
       {
         element: homePage.navigationComponent.topNavbar,
       }
@@ -50,6 +48,7 @@ test.describe("Home Page Functionality", () => {
 
     test("3D Homepage Visual Regression Test (Home view)", async () => {
       await homePage.navigationComponentHelper.navigateToHome();
+      await page.waitForTimeout(5000);
       await runScreenshotTestWithReport(
         screenshotTester,
         "3d-homepage-home-view"

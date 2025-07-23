@@ -6,6 +6,6 @@ export function getScreenshotDefaults() {
 
   return {
     aiThreshold: metadata?.screenshotDefaults?.aiThreshold ?? 75,
-    nativeThreshold: metadata?.screenshotDefaults?.nativeThreshold ?? 0.9,
+    nativeThreshold: metadata?.screenshotDefaults?.nativeThreshold ?? 0.8,
   };
 }

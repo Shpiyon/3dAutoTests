@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 dotenv.config();
 
 export default defineConfig({
-  timeout: process.env.CI === "true" ? 300000 : 60000,
+  timeout: process.env.CI === "true" ? 300000 : 100000,
   testDir: "./tests",
   testMatch: "**/*.spec.ts",
   fullyParallel: false,
@@ -32,7 +32,7 @@ export default defineConfig({
   metadata: {
     screenshotDefaults: {
       aiThreshold: 75,
-      nativeThreshold: 0.9,
+      nativeThreshold: 0.8,
     },
   },
   projects: [

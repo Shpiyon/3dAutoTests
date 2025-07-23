@@ -19,26 +19,38 @@ export class AmenitiesPage extends BasePage {
     this.navigation = new NavigationComponent(page);
 
     this.gymPin = page.locator(".pin-wrapper").filter({
-      has: page.locator("span").filter({ hasText: /^Gym$/ }),
+      has: page.locator("span").filter({ hasText: /^Gym$/ }).first(),
     });
 
-    this.poolPin = page.locator(".pin-wrapper").filter({
-      has: page.locator("span").filter({ hasText: /^Pool$/ }),
-    });
+    this.poolPin = page
+      .locator(".pin-wrapper")
+      .filter({
+        has: page.locator("span").filter({ hasText: /^Pool$/ }),
+      })
+      .first();
 
-    this.loungePin = page.locator(".pin-wrapper").filter({
-      has: page
-        .locator("span")
-        .filter({ hasText: /^Lounge Area by the Pool$/ }),
-    });
+    this.loungePin = page
+      .locator(".pin-wrapper")
+      .filter({
+        has: page
+          .locator("span")
+          .filter({ hasText: /^Lounge Area by the Pool$/ }),
+      })
+      .first();
 
-    this.childrenPlygroundPin = page.locator(".pin-wrapper").filter({
-      has: page.locator("span").filter({ hasText: /^Children Playground$/ }),
-    });
+    this.childrenPlygroundPin = page
+      .locator(".pin-wrapper")
+      .filter({
+        has: page.locator("span").filter({ hasText: /^Children Playground$/ }),
+      })
+      .first();
 
-    this.parkingPin = page.locator(".pin-wrapper").filter({
-      has: page.locator("span").filter({ hasText: /^Parking$/ }),
-    });
+    this.parkingPin = page
+      .locator(".pin-wrapper")
+      .filter({
+        has: page.locator("span").filter({ hasText: /^Parking$/ }),
+      })
+      .first();
 
     this.amenitieCard = page.locator("#amenitiesCard");
 

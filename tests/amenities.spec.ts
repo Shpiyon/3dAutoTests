@@ -2,7 +2,6 @@ import { test, Page, BrowserContext } from "@playwright/test";
 import { AmenitiesPage } from "../pages/amenities-page/AmenitiesPage";
 import { AmenitiesPageHelper } from "../pages/amenities-page/AmenitiesPageHelper";
 import { ScreenshotTester } from "../utils/screenshotTester";
-import { BaselineScreenshotManager } from "../utils/baselineScreenshotManager";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 import { NavigationComponentHelper } from "components/navigation-component/navigationComponentHelper";
 
@@ -16,12 +15,11 @@ test.describe("Amenities Page Visual Regression Tests", () => {
 
   if (process.env.CI === "true") {
     test.beforeEach(async ({ browser }) => {
-      await BaselineScreenshotManager.initializeBaselines();
       context = await browser.newContext();
       page = await context.newPage();
       amenitiesPage = new AmenitiesPage(page);
       amenitiesHelper = new AmenitiesPageHelper(page);
-      screenshotTester = new ScreenshotTester(page, browser);
+      screenshotTester = new ScreenshotTester(page);
       navigationHelper = new NavigationComponentHelper(page);
       await amenitiesPage.startPage();
     });
@@ -32,12 +30,11 @@ test.describe("Amenities Page Visual Regression Tests", () => {
     });
   } else {
     test.beforeAll(async ({ browser }) => {
-      await BaselineScreenshotManager.initializeBaselines();
       context = await browser.newContext();
       page = await context.newPage();
       amenitiesPage = new AmenitiesPage(page);
       amenitiesHelper = new AmenitiesPageHelper(page);
-      screenshotTester = new ScreenshotTester(page, browser);
+      screenshotTester = new ScreenshotTester(page);
       navigationHelper = new NavigationComponentHelper(page);
       await amenitiesPage.startPage();
     });
@@ -78,8 +75,6 @@ test.describe("Amenities Page Visual Regression Tests", () => {
           `3d-amenity-${amenity.label.toLowerCase()}-view`
         );
       }
-
-      //await navigationHelper.navigateToHome();
     });
   });
 });

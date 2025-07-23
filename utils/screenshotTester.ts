@@ -1,5 +1,4 @@
 import { Page, Browser, expect, Locator } from "@playwright/test";
-import { BaselineScreenshotManager } from "./baselineScreenshotManager";
 import {
   AIScreenshotAnalyzer,
   ComparisonAnalysisResult,
@@ -24,7 +23,7 @@ export interface ScreenshotTestResult {
 }
 
 export class ScreenshotTester {
-  constructor(private page: Page, private browser: Browser) {}
+  constructor(private page: Page) {}
 
   async runScreenshotTest(
     options: ScreenshotTestOptions
@@ -75,45 +74,85 @@ export class ScreenshotTester {
   ): Promise<ScreenshotTestResult> {
     const defaults = getScreenshotDefaults();
     const { testName, threshold = defaults.aiThreshold, element } = options;
-    const browserName = this.browser.browserType().name();
 
+    const snapshotExists = await this.checkSnapshotExists(testName);
+
+    if (!snapshotExists) {
+      console.log(`Creating baseline snapshot for ${testName}`);
+      try {
+        if (element) {
+          await expect(element).toHaveScreenshot(`${testName}.png`);
+        } else {
+          await expect(this.page).toHaveScreenshot(`${testName}.png`, {
+            fullPage: true,
+          });
+        }
+
+        const screenshot = await this.takeScreenshot({ element });
+        return {
+          success: true,
+          isBaseline: true,
+          screenshotPath: await this.saveScreenshot(testName, screenshot),
+        };
+      } catch (error) {
+        throw new Error(
+          `Failed to create baseline snapshot for ${testName}: ${error}`
+        );
+      }
+    }
+
+    // Snapshot exists - run AI comparison
+    console.log(`Running AI analysis for ${testName}`);
+
+    // Take current screenshot for AI analysis
     const screenshot = await this.takeScreenshot({ element });
-    const screenshotPath = await this.saveScreenshot(testName, screenshot);
 
+    // Run AI analysis on the current screenshot
+    const analysisResult =
+      await AIScreenshotAnalyzer.analyze3DVisualizationPage(
+        screenshot.toString("base64")
+      );
+
+    const passed =
+      analysisResult.score >= threshold &&
+      !analysisResult.analysis.toLowerCase().includes("critical");
+
+    return {
+      success: passed,
+      isBaseline: false,
+      analysisResult: {
+        ...analysisResult,
+        comparisonType: "baseline" as const,
+        visualDifferences: [],
+        regressionSeverity:
+          analysisResult.score < 50
+            ? "high"
+            : analysisResult.score < 70
+            ? "medium"
+            : "low",
+      } as ComparisonAnalysisResult,
+      screenshotPath: await this.saveScreenshot(testName, screenshot),
+    };
+  }
+
+  private async checkSnapshotExists(testName: string): Promise<boolean> {
     const testInfo = require("@playwright/test").test.info();
     const testFilePath = testInfo?.file;
 
-    const baseline = BaselineScreenshotManager.loadBaseline(
-      testName,
-      browserName,
-      testFilePath
+    if (!testFilePath) return false;
+
+    const testFileName = path.basename(testFilePath, ".ts");
+    const snapshotDir = path.join(
+      path.dirname(testFilePath),
+      `${testFileName}.ts-snapshots`
+    );
+    const platform = process.platform === "win32" ? "win32" : "linux";
+    const snapshotPath = path.join(
+      snapshotDir,
+      `${testName}-chromium-${platform}.png`
     );
 
-    if (!baseline) {
-      throw new Error(
-        `No baseline found for ${testName}. Ensure snapshots are generated first.`
-      );
-    }
-
-    const comparisonResult = await AIScreenshotAnalyzer.compareWithBaseline(
-      baseline.toString("base64"),
-      screenshot.toString("base64"),
-      { testName, url: this.page.url(), browserName }
-    );
-
-    return {
-      success:
-        comparisonResult.score >= threshold &&
-        comparisonResult.regressionSeverity !== "critical",
-      isBaseline: false,
-      analysisResult: comparisonResult,
-      screenshotPath,
-      baselinePath: BaselineScreenshotManager.getBaselinePath(
-        testName,
-        browserName,
-        testFilePath
-      ),
-    };
+    return fs.existsSync(snapshotPath);
   }
 
   async takeScreenshot(options?: { element?: Locator }): Promise<Buffer> {

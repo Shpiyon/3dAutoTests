@@ -3,7 +3,6 @@ import { ApartmentsPage } from "../pages/apartments-page/ApartmentsPage";
 import { ApartmentsPageHelper } from "../pages/apartments-page/apartmentsPageHelper";
 import { NavigationComponentHelper } from "../components/navigation-component/navigationComponentHelper";
 import { ScreenshotTester } from "../utils/screenshotTester";
-import { BaselineScreenshotManager } from "../utils/baselineScreenshotManager";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 
 test.describe("Apartments Page Visual Regression Tests", () => {
@@ -15,13 +14,12 @@ test.describe("Apartments Page Visual Regression Tests", () => {
   let context: BrowserContext;
 
   test.beforeAll(async ({ browser }) => {
-    await BaselineScreenshotManager.initializeBaselines();
     context = await browser.newContext();
     page = await context.newPage();
     apartmentsPage = new ApartmentsPage(page);
     apartmentsHelper = new ApartmentsPageHelper(page);
     navigationHelper = new NavigationComponentHelper(page);
-    screenshotTester = new ScreenshotTester(page, browser);
+    screenshotTester = new ScreenshotTester(page);
     await apartmentsPage.startPage();
   });
 
