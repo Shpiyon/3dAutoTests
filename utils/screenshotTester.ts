@@ -1,7 +1,7 @@
-import { Page, Browser, expect, Locator } from "@playwright/test";
+import { Page, expect, Locator } from "@playwright/test";
 import {
   AIScreenshotAnalyzer,
-  ComparisonAnalysisResult,
+  ScreenshotAnalysisResult,
 } from "./aiScreenshotAnalyzer";
 import { getScreenshotDefaults } from "./configUtils";
 import * as fs from "fs";
@@ -16,7 +16,7 @@ export interface ScreenshotTestOptions {
 export interface ScreenshotTestResult {
   success: boolean;
   isBaseline: boolean;
-  analysisResult?: ComparisonAnalysisResult;
+  analysisResult?: ScreenshotAnalysisResult;
   nativeResult?: { passed: boolean; diffPath?: string };
   screenshotPath?: string;
   baselinePath?: string;
@@ -101,13 +101,10 @@ export class ScreenshotTester {
       }
     }
 
-    // Snapshot exists - run AI comparison
     console.log(`Running AI analysis for ${testName}`);
 
-    // Take current screenshot for AI analysis
     const screenshot = await this.takeScreenshot({ element });
 
-    // Run AI analysis on the current screenshot
     const analysisResult =
       await AIScreenshotAnalyzer.analyze3DVisualizationPage(
         screenshot.toString("base64")
@@ -120,17 +117,7 @@ export class ScreenshotTester {
     return {
       success: passed,
       isBaseline: false,
-      analysisResult: {
-        ...analysisResult,
-        comparisonType: "baseline" as const,
-        visualDifferences: [],
-        regressionSeverity:
-          analysisResult.score < 50
-            ? "high"
-            : analysisResult.score < 70
-            ? "medium"
-            : "low",
-      } as ComparisonAnalysisResult,
+      analysisResult,
       screenshotPath: await this.saveScreenshot(testName, screenshot),
     };
   }
@@ -186,7 +173,7 @@ export class ScreenshotTester {
   }
 
   async saveScreenshot(testName: string, screenshot: Buffer): Promise<string> {
-    const resultsDir = "test-results";
+    const resultsDir = path.resolve("test-results");
     if (!fs.existsSync(resultsDir))
       fs.mkdirSync(resultsDir, { recursive: true });
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");

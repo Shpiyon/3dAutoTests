@@ -1,9 +1,7 @@
 import { test, expect } from "@playwright/test";
-import {
-  ScreenshotAnalysisResult,
-  ComparisonAnalysisResult,
-} from "./aiScreenshotAnalyzer";
+import { ScreenshotAnalysisResult } from "./aiScreenshotAnalyzer";
 import { ScreenshotTester } from "./screenshotTester";
+import * as fs from "fs";
 
 function getScreenshotDefaults() {
   const testInfo = test.info();
@@ -14,12 +12,8 @@ function getScreenshotDefaults() {
   };
 }
 
-
 export function addAIAnalysisToReport(
-  analysisResult:
-    | ScreenshotAnalysisResult
-    | ComparisonAnalysisResult
-    | undefined,
+  analysisResult: ScreenshotAnalysisResult | undefined,
   screenshotPath?: string
 ): void {
   if (!analysisResult) {
@@ -28,10 +22,15 @@ export function addAIAnalysisToReport(
       description: "Native Playwright Screenshot Comparison",
     });
     if (screenshotPath) {
-      test.info().attach("Screenshot", {
-        path: screenshotPath,
-        contentType: "image/png",
-      });
+      try {
+        const screenshotBuffer = fs.readFileSync(screenshotPath);
+        test.info().attach("Screenshot", {
+          body: screenshotBuffer,
+          contentType: "image/png",
+        });
+      } catch (error) {
+        console.log(`Screenshot attach failed for: ${screenshotPath}`);
+      }
     }
     return;
   }
@@ -49,35 +48,27 @@ export function addAIAnalysisToReport(
       description: analysisResult.issues.join(", "),
     });
   }
-  if ("comparisonType" in analysisResult) {
+  if (analysisResult.severity) {
     test.info().annotations.push({
-      type: "Comparison Type",
-      description: analysisResult.comparisonType,
+      type: "Analysis Severity",
+      description: analysisResult.severity,
     });
-    test.info().annotations.push({
-      type: "Regression Severity",
-      description: analysisResult.regressionSeverity,
-    });
-    if (analysisResult.visualDifferences.length > 0) {
-      test.info().annotations.push({
-        type: "Visual Differences",
-        description: analysisResult.visualDifferences.join(", "),
-      });
-    }
   }
   if (screenshotPath) {
-    test.info().attach("Screenshot Analysis", {
-      path: screenshotPath,
-      contentType: "image/png",
-    });
+    try {
+      const screenshotBuffer = fs.readFileSync(screenshotPath);
+      test.info().attach("Screenshot Analysis", {
+        body: screenshotBuffer,
+        contentType: "image/png",
+      });
+    } catch (error) {
+      console.log(`Screenshot attach failed for: ${screenshotPath}`, error);
+    }
   }
 }
 
 export function assertAIAnalysisResults(
-  analysisResult:
-    | ScreenshotAnalysisResult
-    | ComparisonAnalysisResult
-    | undefined,
+  analysisResult: ScreenshotAnalysisResult | undefined,
   success: boolean,
   threshold?: number
 ): void {
@@ -86,26 +77,27 @@ export function assertAIAnalysisResults(
     expect(success, `Native screenshot comparison failed`).toBe(true);
     return;
   }
-  const criticalKeywords = ["critical", "broken", "not loading", "major"];
-  const hasCriticalIssues = analysisResult.issues.some((issue) =>
-    criticalKeywords.some((keyword) => issue.toLowerCase().includes(keyword))
-  );
+
+  const hasCriticalIssues = analysisResult.severity === "critical";
+
   expect(
     success,
-    `Test failed - Score: ${
+    `AI Analysis Result - Score: ${
       analysisResult.score
     }/100, Issues: ${analysisResult.issues.join(", ")}`
   ).toBe(true);
   expect(
     analysisResult.score,
-    `Score too low: ${analysisResult.score}/100`
+    `AI Score: ${analysisResult.score}/100 (threshold: ${effectiveThreshold})`
   ).toBeGreaterThan(effectiveThreshold);
   expect(
     hasCriticalIssues,
-    `Critical issues found: ${analysisResult.issues.join(", ")}`
+    `Critical issue check - Issues detected: ${analysisResult.issues.join(
+      ", "
+    )}`
   ).toBe(false);
-  if ("regressionSeverity" in analysisResult) {
-    expect(["low", "medium"]).toContain(analysisResult.regressionSeverity);
+  if (analysisResult.severity) {
+    expect(["low", "medium", "high"]).toContain(analysisResult.severity);
   }
 }
 

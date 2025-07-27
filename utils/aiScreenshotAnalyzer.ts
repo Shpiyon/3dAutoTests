@@ -23,13 +23,8 @@ export interface ScreenshotAnalysisResult {
   analysis: string;
   issues: string[];
   score: number;
+  severity?: "low" | "medium" | "high" | "critical";
   model?: string;
-}
-
-export interface ComparisonAnalysisResult extends ScreenshotAnalysisResult {
-  comparisonType: "baseline" | "regression";
-  visualDifferences: string[];
-  regressionSeverity: "low" | "medium" | "high" | "critical";
 }
 
 interface AIConfig {
@@ -52,11 +47,21 @@ export class AIScreenshotAnalyzer {
 3. Layout quality and visual bugs
 4. Overall user experience
 
-Respond EXACTLY in this format:
+CRITICAL: You MUST respond EXACTLY in this format (no deviation allowed):
 RESULT: [PASS or FAIL]
 SCORE: [0-100]
 ISSUES: [issues list or "none"]
-ANALYSIS: [explanation]`;
+SEVERITY: [low, medium, high, or critical]
+ANALYSIS: [explanation]
+
+Example:
+RESULT: PASS
+SCORE: 85
+ISSUES: Navigation slightly misaligned
+SEVERITY: low
+ANALYSIS: Website loads correctly with good 3D visualization but has minor navigation issues.
+
+Any response not in this exact format will be rejected.`;
 
     console.log(`🤖 AI Analysis: ${provider} (${model})`);
 
@@ -81,26 +86,6 @@ ANALYSIS: [explanation]`;
           }
         : this.createResult(message, model, true);
     }
-  }
-
-  // Baseline comparison wrapper
-  static async compareWithBaseline(
-    currentBase64: string,
-    _baselineBase64: string,
-    _testContext: { testName: string; url: string; browserName: string },
-    config?: AIConfig
-  ): Promise<ComparisonAnalysisResult> {
-    const result = await this.analyze3DVisualizationPage(currentBase64, config);
-    return {
-      ...result,
-      comparisonType: "regression" as const,
-      visualDifferences: this.extractPatterns(result.analysis, [
-        "different",
-        "changed",
-        "missing",
-      ]),
-      regressionSeverity: this.getSeverity(result.analysis),
-    };
   }
 
   // Configuration from environment
@@ -229,80 +214,43 @@ ANALYSIS: [explanation]`;
       };
     }
 
-    // Parse structured response
+    // Parse structured response (REQUIRED format)
     const resultMatch = analysis.match(/RESULT:\s*(PASS|FAIL)/i);
     const scoreMatch = analysis.match(/SCORE:\s*(\d+)/i);
     const issuesMatch = analysis.match(/ISSUES:\s*([^\n]+)/i);
+    const severityMatch = analysis.match(
+      /SEVERITY:\s*(low|medium|high|critical)/i
+    );
 
-    if (resultMatch && scoreMatch) {
-      const isValid = resultMatch[1].toUpperCase() === "PASS";
-      const score = parseInt(scoreMatch[1]);
-      const issuesText = issuesMatch?.[1] || "";
-      const issues = issuesText.toLowerCase().includes("none")
-        ? []
-        : issuesText
-            .split(",")
-            .map((i) => i.trim())
-            .filter((i) => i.length > 0);
-
-      return { isValid, analysis, issues, score, model };
+    // If AI didn't follow the required format, treat as error
+    if (!resultMatch || !scoreMatch || !severityMatch) {
+      return {
+        isValid: false,
+        analysis: `AI response format error: Expected RESULT, SCORE, and SEVERITY fields. Got: ${analysis.substring(
+          0,
+          200
+        )}...`,
+        issues: ["Invalid AI response format"],
+        score: 0,
+        model,
+      };
     }
 
-    // Fallback parsing
-    console.warn("AI response not in expected format, using fallback parsing");
-    const lower = analysis.toLowerCase();
-    const failureKeywords = [
-      "fail",
-      "error",
-      "broken",
-      "critical",
-      "major issue",
-    ];
-    const isValid = !failureKeywords.some((keyword) => lower.includes(keyword));
-    const issues = this.extractPatterns(analysis, [
-      "missing",
-      "broken",
-      "error",
-      "problem",
-    ]);
-    const score = this.calculateScore(lower, issues.length);
+    const isValid = resultMatch[1].toUpperCase() === "PASS";
+    const score = parseInt(scoreMatch[1]);
+    const severity = severityMatch[1].toLowerCase() as
+      | "low"
+      | "medium"
+      | "high"
+      | "critical";
+    const issuesText = issuesMatch?.[1] || "";
+    const issues = issuesText.toLowerCase().includes("none")
+      ? []
+      : issuesText
+          .split(",")
+          .map((i) => i.trim())
+          .filter((i) => i.length > 0);
 
-    return { isValid, analysis, issues, score, model };
-  }
-
-  // Extract patterns from text
-  private static extractPatterns(text: string, patterns: string[]): string[] {
-    return [
-      ...new Set(
-        text
-          .split(/[.!?]+/)
-          .filter((sentence) =>
-            patterns.some((pattern) => sentence.toLowerCase().includes(pattern))
-          )
-          .map((sentence) => sentence.trim())
-          .filter((sentence) => sentence.length > 10)
-      ),
-    ];
-  }
-
-  // Calculate fallback score
-  private static calculateScore(text: string, issueCount: number): number {
-    let score = 100 - issueCount * 15;
-    if (text.includes("critical")) score -= 40;
-    if (text.includes("broken") || text.includes("fail")) score -= 25;
-    if (text.includes("excellent")) score += 10;
-    return Math.max(0, Math.min(100, score));
-  }
-
-  // Determine severity level
-  private static getSeverity(
-    text: string
-  ): "low" | "medium" | "high" | "critical" {
-    const lower = text.toLowerCase();
-    if (lower.includes("critical") || lower.includes("broken"))
-      return "critical";
-    if (lower.includes("high") || lower.includes("major")) return "high";
-    if (lower.includes("medium")) return "medium";
-    return "low";
+    return { isValid, analysis, issues, score, model, severity };
   }
 }
