@@ -11,6 +11,26 @@ on:
         required: false
         default: false
         type: boolean
+      ai_provider:
+        description: "AI Provider"
+        required: false
+        default: "claude"
+        type: choice
+        options:
+          - claude
+          - openai
+      ai_model:
+        description: "AI Model"
+        required: false
+        default: "claude-3-5-haiku-latest"
+        type: choice
+        options:
+          - claude-opus-4-20250514
+          - claude-sonnet-4-20250514
+          - claude-3-5-sonnet-latest
+          - claude-3-5-haiku-latest
+          - gpt-4o
+          - gpt-4o-mini
 jobs:
   test:
     timeout-minutes: 60
@@ -19,7 +39,10 @@ jobs:
     env:
       CI: true
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
       ENABLE_AI_ANALYSIS: ${{ inputs.enable_ai_analysis || 'false' }}
+      AI_PROVIDER: ${{ inputs.ai_provider || 'claude' }}
+      AI_MODEL: ${{ inputs.ai_model || 'claude-3-5-haiku-latest' }}
 
     steps:
       - name: Checkout repository
@@ -62,6 +85,8 @@ jobs:
           echo "- CI Mode: Element screenshots only" >> $GITHUB_STEP_SUMMARY
           echo "- Browser: Chromium only" >> $GITHUB_STEP_SUMMARY
           echo "- AI Analysis: ${{ env.ENABLE_AI_ANALYSIS }}" >> $GITHUB_STEP_SUMMARY
+          echo "- AI Provider: ${{ env.AI_PROVIDER }}" >> $GITHUB_STEP_SUMMARY
+          echo "- AI Model: ${{ env.AI_MODEL }}" >> $GITHUB_STEP_SUMMARY
           echo "- First run expected to fail (no baselines), second run should pass" >> $GITHUB_STEP_SUMMARY
 
       - name: Upload test results
