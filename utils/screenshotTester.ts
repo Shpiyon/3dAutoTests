@@ -80,13 +80,28 @@ export class ScreenshotTester {
     const snapshotExists = await this.checkSnapshotExists(testName);
 
     if (!snapshotExists) {
-      console.log(`Creating baseline snapshot for ${testName}`);
+      console.log(
+        `[${new Date().toISOString()}] Creating baseline snapshot for ${testName}`
+      );
       try {
         if (element) {
+          console.log(
+            `[${new Date().toISOString()}] Taking element screenshot with 30s timeout...`
+          );
+          // Log element state before screenshot
+          const isVisible = await element.isVisible();
+          const isEnabled = await element.isEnabled();
+          console.log(
+            `[${new Date().toISOString()}] Element state - visible: ${isVisible}, enabled: ${isEnabled}`
+          );
+
           await expect(element).toHaveScreenshot(`${testName}.png`, {
             timeout: 30000, // 30 seconds timeout
           });
         } else {
+          console.log(
+            `[${new Date().toISOString()}] Taking full page screenshot with 30s timeout...`
+          );
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
             timeout: 30000, // 30 seconds timeout

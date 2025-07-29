@@ -8,7 +8,7 @@ function getScreenshotDefaults() {
   const metadata = testInfo.config.metadata as any;
   return {
     aiThreshold: metadata?.screenshotDefaults?.aiThreshold ?? 75,
-    nativeThreshold: metadata?.screenshotDefaults?.nativeThreshold ?? 0.8,
+    nativeThreshold: metadata?.screenshotDefaults?.nativeThreshold ?? 0.3,
   };
 }
 
