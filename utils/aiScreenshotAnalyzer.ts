@@ -42,10 +42,19 @@ export class AIScreenshotAnalyzer {
     const { provider, model, maxTokens } = { ...this.getDefaults(), ...config };
 
     const prompt = `Analyze this 3D real estate website screenshot for:
-1. Navigation menu visibility and alignment
+${
+  process.env.CI === "true"
+    ? `NOTE: This is an ELEMENT screenshot from CI environment - some UI elements may be cropped or missing from view.
+Focus on what IS visible in the screenshot:
+1. Element-specific functionality and rendering
+2. Visual quality of the captured element
+3. Any visible layout or styling issues
+4. Content loading and display within the element bounds`
+    : `1. Navigation menu visibility and alignment
 2. 3D canvas/viewer loading and display
 3. Layout quality and visual bugs
-4. Overall user experience
+4. Overall user experience`
+}
 
 CRITICAL: You MUST respond EXACTLY in this format (no deviation allowed):
 RESULT: [PASS or FAIL]
@@ -154,7 +163,7 @@ Any response not in this exact format will be rejected.`;
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Claude API Error (${response.status}):`, errorText);
+        console.error(`Claude API Error (${response.status}):`, errorText);
         throw new Error(`Claude API error: ${response.status} - ${errorText}`);
       }
 

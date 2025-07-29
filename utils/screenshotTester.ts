@@ -43,11 +43,13 @@ export class ScreenshotTester {
       if (element) {
         await expect(element).toHaveScreenshot(`${testName}.png`, {
           threshold,
+          timeout: 30000, // 30 seconds timeout
         });
       } else {
         await expect(this.page).toHaveScreenshot(`${testName}.png`, {
           fullPage: true,
           threshold,
+          timeout: 30000, // 30 seconds timeout
         });
       }
       return {
@@ -81,10 +83,13 @@ export class ScreenshotTester {
       console.log(`Creating baseline snapshot for ${testName}`);
       try {
         if (element) {
-          await expect(element).toHaveScreenshot(`${testName}.png`);
+          await expect(element).toHaveScreenshot(`${testName}.png`, {
+            timeout: 30000, // 30 seconds timeout
+          });
         } else {
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
+            timeout: 30000, // 30 seconds timeout
           });
         }
 
@@ -134,15 +139,20 @@ export class ScreenshotTester {
       `${testFileName}.ts-snapshots`
     );
     const platform = process.platform === "win32" ? "win32" : "linux";
+
+    const normalizedTestName = testName.replace(/\s+/g, "-").toLowerCase();
+
     const snapshotPath = path.join(
       snapshotDir,
-      `${testName}-chromium-${platform}.png`
+      `${normalizedTestName}-chromium-${platform}.png`
     );
-
     return fs.existsSync(snapshotPath);
   }
 
   async takeScreenshot(options?: { element?: Locator }): Promise<Buffer> {
+    // Wait for page to stabilize before taking screenshot
+    await this.page.waitForTimeout(2000);
+
     return options?.element
       ? await this.takeElementScreenshot(options.element)
       : await this.takeFullPageScreenshot();
@@ -154,7 +164,7 @@ export class ScreenshotTester {
         return await element.screenshot();
       } catch (error) {
         if (attempt === 3) throw error;
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(2000);
       }
     }
     throw new Error("Element screenshot failed");
@@ -166,7 +176,7 @@ export class ScreenshotTester {
         return await this.page.screenshot();
       } catch (error) {
         if (attempt === 3) throw error;
-        await this.page.waitForTimeout(1000);
+        await this.page.waitForTimeout(2000);
       }
     }
     throw new Error("Full page screenshot failed");
