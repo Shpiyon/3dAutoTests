@@ -25,7 +25,7 @@ export interface ScreenshotAnalysisResult {
   score: number;
   severity?: "low" | "medium" | "high" | "critical";
   model?: string;
-  diffImageBase64?: string; // AI-generated diff image
+  diffImageBase64?: string;
 }
 
 interface AIConfig {
@@ -35,10 +35,9 @@ interface AIConfig {
 }
 
 export class AIScreenshotAnalyzer {
-  // Main entry point for screenshot analysis - REQUIRES both baseline and current images
   static async analyze3DVisualizationPage(
     currentImageBase64: string,
-    baselineImageBase64: string, // Now required, not optional
+    baselineImageBase64: string,
     config?: AIConfig
   ): Promise<ScreenshotAnalysisResult> {
     const { provider, model, maxTokens } = { ...this.getDefaults(), ...config };
@@ -68,9 +67,9 @@ SCORE: [0-100]
 ISSUES: [issues list or "none"]
 SEVERITY: [low, medium, high, or critical]
 ANALYSIS: [detailed comparison explanation]
-DIFF_IMAGE: [base64 encoded image highlighting differences]
+DIFF_IMAGE: [base64 encoded image highlighting differences, or "none" if no significant differences]
 
-The DIFF_IMAGE should be a visual representation highlighting areas of difference between the two screenshots.`;
+The DIFF_IMAGE field is optional - only include it if there are meaningful visual differences to highlight. If the images are identical, you may omit this field`;
 
     console.log(
       `🤖 AI Analysis: ${provider} (${model}) - Comparison Mode (Baseline vs Current)`
@@ -254,10 +253,10 @@ The DIFF_IMAGE should be a visual representation highlighting areas of differenc
       /DIFF_IMAGE:\s*([A-Za-z0-9+/=]+|none)/i
     );
 
-    if (!resultMatch || !scoreMatch || !severityMatch || !diffImageMatch) {
+    if (!resultMatch || !scoreMatch || !severityMatch) {
       return {
         isValid: false,
-        analysis: `AI response format error: Expected RESULT, SCORE, SEVERITY, and DIFF_IMAGE fields. Got: ${analysis.substring(
+        analysis: `AI response format error: Expected RESULT, SCORE, and SEVERITY fields. Got: ${analysis.substring(
           0,
           200
         )}...`,
@@ -283,7 +282,7 @@ The DIFF_IMAGE should be a visual representation highlighting areas of differenc
           .filter((i) => i.length > 0);
 
     const diffImageBase64 =
-      diffImageMatch[1].toLowerCase() !== "none"
+      diffImageMatch && diffImageMatch[1].toLowerCase() !== "none"
         ? diffImageMatch[1]
         : undefined;
 
