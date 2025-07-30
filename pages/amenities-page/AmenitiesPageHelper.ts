@@ -13,12 +13,7 @@ export class AmenitiesPageHelper {
   async clickPin(pin: Locator) {
     await expect(pin).toBeVisible({ timeout: 20000 });
     await pin.click({ force: true });
-
-    if (process.env.CI !== "true") {
-      await this.page.waitForTimeout(5000); // Allow 3D transitions to complete
-    } else {
-      await this.page.waitForTimeout(8000); // Longer wait in CI
-    }
+    await this.page.waitForTimeout(4000); // Allow 3D transitions to complete
   }
 
   async expectAmenityCardVisibleWithTitle(expectedTitle: string) {
@@ -30,6 +25,6 @@ export class AmenitiesPageHelper {
     await expect(h3).toHaveText(expectedTitle, { timeout: 5000 });
 
     // Additional wait for card to fully stabilize
-    await this.page.waitForTimeout(3000);
+    await this.page.waitForTimeout(2000);
   }
 }
