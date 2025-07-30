@@ -23,8 +23,5 @@ export class AmenitiesPageHelper {
     const h3 = this.amenitiesPage.amenitieCardTitle;
     await expect(h3).toBeVisible();
     await expect(h3).toHaveText(expectedTitle, { timeout: 5000 });
-
-    // Additional wait for card to fully stabilize
-    await this.page.waitForTimeout(2000);
   }
 }
