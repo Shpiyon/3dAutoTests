@@ -55,13 +55,42 @@ test.describe("Amenities Page Visual Regression Tests", () => {
 
   amenityTests.forEach((amenity) => {
     test(`Amenity: ${amenity.label} - 3D Scene and Card Visual Regression`, async () => {
+      console.log(`🔍 Starting test for amenity: ${amenity.label}`);
+      console.log(`📍 Navigating to amenities page...`);
       await navigationHelper.navigateToAmenities();
+
+      console.log(`🖱️ Clicking pin for ${amenity.label}...`);
       await amenitiesHelper.clickPin(
         amenitiesPage[amenity.pin as keyof AmenitiesPage] as any
       );
+
+      console.log(
+        `✅ Expecting amenity card to be visible with title: ${amenity.label}`
+      );
       await amenitiesHelper.expectAmenityCardVisibleWithTitle(amenity.label);
 
+      console.log(`📸 Taking screenshot for ${amenity.label}...`);
+      console.log(
+        `🔧 CI Environment: ${process.env.CI === "true" ? "YES" : "NO"}`
+      );
+
       if (process.env.CI === "true") {
+        console.log(`📦 Taking element screenshot of amenitiesCard...`);
+        console.log(`🎯 Element selector: #amenitiesCard`);
+
+        // Add extra wait and stability check before screenshot
+        console.log(`⏳ Waiting for element to be stable...`);
+        await page.waitForTimeout(2000); // Give extra time for animations/transitions
+
+        // Check if element is visible and stable
+        const isVisible = await amenitiesPage.amenitieCard.isVisible();
+        console.log(`👁️ Element visibility check: ${isVisible}`);
+
+        if (isVisible) {
+          const boundingBox = await amenitiesPage.amenitieCard.boundingBox();
+          console.log(`📏 Element bounding box:`, boundingBox);
+        }
+
         await runScreenshotTestWithReport(
           screenshotTester,
           `3d-amenity-${amenity.label.toLowerCase()}-view`,
@@ -70,11 +99,14 @@ test.describe("Amenities Page Visual Regression Tests", () => {
           }
         );
       } else {
+        console.log(`📦 Taking full page screenshot...`);
         await runScreenshotTestWithReport(
           screenshotTester,
           `3d-amenity-${amenity.label.toLowerCase()}-view`
         );
       }
+
+      console.log(`✅ Test completed for amenity: ${amenity.label}`);
     });
   });
 });

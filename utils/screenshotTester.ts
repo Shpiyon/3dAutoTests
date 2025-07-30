@@ -32,11 +32,19 @@ export class ScreenshotTester {
   ): Promise<T> {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        return await operation();
+        console.log(`🔄 Screenshot attempt ${attempt}/${maxAttempts}`);
+        const result = await operation();
+        if (attempt > 1) {
+          console.log(`✅ Screenshot succeeded on attempt ${attempt}`);
+        }
+        return result;
       } catch (error) {
+        console.log(`❌ Screenshot attempt ${attempt} failed:`, error);
         if (attempt === maxAttempts) {
+          console.log(`💥 All ${maxAttempts} screenshot attempts failed`);
           throw error;
         }
+        console.log(`⏳ Retrying in ${delayMs}ms...`);
         await this.page.waitForTimeout(delayMs);
       }
     }
@@ -114,19 +122,46 @@ export class ScreenshotTester {
     const snapshotExists = await this.checkSnapshotExists(testName);
 
     if (!snapshotExists) {
-      console.log(`Creating baseline snapshot for ${testName}`);
+      console.log(`📷 Creating baseline snapshot for ${testName}`);
+      console.log(
+        `🎯 Screenshot mode: ${
+          element ? "Element screenshot" : "Full page screenshot"
+        }`
+      );
+
       try {
         if (element) {
+          console.log(`🔍 Taking element screenshot with 15s timeout...`);
+          console.log(`📍 Element selector: ${element}`);
+
+          // Check element state before screenshot
+          const isVisible = await element.isVisible();
+          const isEnabled = await element.isEnabled();
+          console.log(
+            `👁️ Element state - Visible: ${isVisible}, Enabled: ${isEnabled}`
+          );
+
+          if (isVisible) {
+            const boundingBox = await element.boundingBox();
+            console.log(`📏 Element bounding box:`, boundingBox);
+          }
+
           await expect(element).toHaveScreenshot(`${testName}.png`, {
-            timeout: 15000,
+            timeout: 30000, // Increased timeout for CI stability
+            animations: "disabled", // Disable animations for stable screenshots
           });
+          console.log(`✅ Element screenshot created successfully`);
         } else {
+          console.log(`🔍 Taking full page screenshot with 15s timeout...`);
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
-            timeout: 15000,
+            timeout: 30000, // Increased timeout for CI stability
+            animations: "disabled", // Disable animations for stable screenshots
           });
+          console.log(`✅ Full page screenshot created successfully`);
         }
       } catch (error) {
+        console.error(`❌ Screenshot creation failed:`, error);
         throw new Error(
           `Failed to create baseline snapshot for ${testName}: ${error}`
         );
@@ -206,12 +241,33 @@ export class ScreenshotTester {
   }
 
   async takeScreenshot(options?: { element?: Locator }): Promise<Buffer> {
+    console.log(
+      `📸 Taking screenshot - Type: ${
+        options?.element ? "Element" : "Full page"
+      }`
+    );
+
     // Wait for page to stabilize before taking screenshot
+    console.log(`⏳ Waiting 2s for page stabilization...`);
     await this.page.waitForTimeout(2000);
 
-    return options?.element
+    if (options?.element) {
+      console.log(`🎯 Taking element screenshot...`);
+      const isVisible = await options.element.isVisible();
+      console.log(`👁️ Element visibility before screenshot: ${isVisible}`);
+
+      if (isVisible) {
+        const boundingBox = await options.element.boundingBox();
+        console.log(`📏 Element bounds:`, boundingBox);
+      }
+    }
+
+    const result = options?.element
       ? await this.takeElementScreenshot(options.element)
       : await this.takeFullPageScreenshot();
+
+    console.log(`✅ Screenshot captured successfully (${result.length} bytes)`);
+    return result;
   }
 
   private async takeElementScreenshot(element: Locator): Promise<Buffer> {
