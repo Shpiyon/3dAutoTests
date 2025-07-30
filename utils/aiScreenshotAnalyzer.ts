@@ -25,6 +25,7 @@ export interface ScreenshotAnalysisResult {
   score: number;
   severity?: "low" | "medium" | "high" | "critical";
   model?: string;
+  diffImageBase64?: string; // AI-generated diff image
 }
 
 interface AIConfig {
@@ -34,51 +35,53 @@ interface AIConfig {
 }
 
 export class AIScreenshotAnalyzer {
-  // Main entry point for screenshot analysis
+  // Main entry point for screenshot analysis - REQUIRES both baseline and current images
   static async analyze3DVisualizationPage(
-    base64Image: string,
+    currentImageBase64: string,
+    baselineImageBase64: string, // Now required, not optional
     config?: AIConfig
   ): Promise<ScreenshotAnalysisResult> {
     const { provider, model, maxTokens } = { ...this.getDefaults(), ...config };
 
-    const prompt = `Analyze this 3D real estate website screenshot for:
+    if (!baselineImageBase64) {
+      throw new Error(
+        "Baseline image is required for AI comparison. Cannot proceed without both images."
+      );
+    }
+
+    const prompt = `Compare these two 3D real estate website screenshots (baseline vs current) and:
+
+1. Analyze visual differences between the baseline (first image) and current (second image)
+2. Identify any regressions, improvements, or changes
+3. Generate a visual diff highlighting the differences
+4. Assess the impact of changes on user experience
+
 ${
   process.env.CI === "true"
-    ? `NOTE: This is an ELEMENT screenshot from CI environment - some UI elements may be cropped or missing from view.
-Focus on what IS visible in the screenshot:
-1. Element-specific functionality and rendering
-2. Visual quality of the captured element
-3. Any visible layout or styling issues
-4. Content loading and display within the element bounds`
-    : `1. Navigation menu visibility and alignment
-2. 3D canvas/viewer loading and display
-3. Layout quality and visual bugs
-4. Overall user experience`
+    ? `NOTE: These are ELEMENT screenshots from CI environment - focus on visible elements only.`
+    : `Focus on: Navigation, 3D canvas, layout quality, and overall UX.`
 }
 
-CRITICAL: You MUST respond EXACTLY in this format (no deviation allowed):
+CRITICAL: You MUST respond EXACTLY in this format:
 RESULT: [PASS or FAIL]
 SCORE: [0-100]
 ISSUES: [issues list or "none"]
 SEVERITY: [low, medium, high, or critical]
-ANALYSIS: [explanation]
+ANALYSIS: [detailed comparison explanation]
+DIFF_IMAGE: [base64 encoded image highlighting differences]
 
-Example:
-RESULT: PASS
-SCORE: 85
-ISSUES: Navigation slightly misaligned
-SEVERITY: low
-ANALYSIS: Website loads correctly with good 3D visualization but has minor navigation issues.
+The DIFF_IMAGE should be a visual representation highlighting areas of difference between the two screenshots.`;
 
-Any response not in this exact format will be rejected.`;
-
-    console.log(`🤖 AI Analysis: ${provider} (${model})`);
+    console.log(
+      `🤖 AI Analysis: ${provider} (${model}) - Comparison Mode (Baseline vs Current)`
+    );
 
     try {
       const analysis = await this.callAPI(
         provider,
         model,
-        base64Image,
+        currentImageBase64,
+        baselineImageBase64,
         prompt,
         maxTokens
       );
@@ -116,11 +119,11 @@ Any response not in this exact format will be rejected.`;
     return { provider, model, maxTokens };
   }
 
-  // API calls to Claude or OpenAI
   private static async callAPI(
     provider: AIProvider,
     model: AIModel,
-    base64Image: string,
+    currentImageBase64: string,
+    baselineImageBase64: string,
     prompt: string,
     maxTokens: number
   ): Promise<string> {
@@ -130,6 +133,31 @@ Any response not in this exact format will be rejected.`;
         : process.env.OPENAI_API_KEY;
 
     if (!apiKey) throw new Error("No API key provided");
+
+    const messages = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/png",
+              data: baselineImageBase64,
+            },
+          },
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: "image/png",
+              data: currentImageBase64,
+            },
+          },
+        ],
+      },
+    ];
 
     if (provider === AI_PROVIDERS.CLAUDE) {
       const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -142,22 +170,7 @@ Any response not in this exact format will be rejected.`;
         body: JSON.stringify({
           model,
           max_tokens: maxTokens,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                {
-                  type: "image",
-                  source: {
-                    type: "base64",
-                    media_type: "image/png",
-                    data: base64Image,
-                  },
-                },
-              ],
-            },
-          ],
+          messages,
         }),
       });
 
@@ -170,6 +183,29 @@ Any response not in this exact format will be rejected.`;
       const data = await response.json();
       return data.content[0].text;
     } else {
+      const openAIMessages = [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${baselineImageBase64}`,
+                detail: "high",
+              },
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:image/png;base64,${currentImageBase64}`,
+                detail: "high",
+              },
+            },
+          ],
+        },
+      ];
+
       const response = await fetch(
         "https://api.openai.com/v1/chat/completions",
         {
@@ -181,21 +217,7 @@ Any response not in this exact format will be rejected.`;
           body: JSON.stringify({
             model,
             max_tokens: maxTokens,
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: prompt },
-                  {
-                    type: "image_url",
-                    image_url: {
-                      url: `data:image/png;base64,${base64Image}`,
-                      detail: "high",
-                    },
-                  },
-                ],
-              },
-            ],
+            messages: openAIMessages,
           }),
         }
       );
@@ -207,7 +229,6 @@ Any response not in this exact format will be rejected.`;
     }
   }
 
-  // Create result object from AI response
   private static createResult(
     analysis: string,
     model: string,
@@ -223,19 +244,20 @@ Any response not in this exact format will be rejected.`;
       };
     }
 
-    // Parse structured response (REQUIRED format)
     const resultMatch = analysis.match(/RESULT:\s*(PASS|FAIL)/i);
     const scoreMatch = analysis.match(/SCORE:\s*(\d+)/i);
     const issuesMatch = analysis.match(/ISSUES:\s*([^\n]+)/i);
     const severityMatch = analysis.match(
       /SEVERITY:\s*(low|medium|high|critical)/i
     );
+    const diffImageMatch = analysis.match(
+      /DIFF_IMAGE:\s*([A-Za-z0-9+/=]+|none)/i
+    );
 
-    // If AI didn't follow the required format, treat as error
-    if (!resultMatch || !scoreMatch || !severityMatch) {
+    if (!resultMatch || !scoreMatch || !severityMatch || !diffImageMatch) {
       return {
         isValid: false,
-        analysis: `AI response format error: Expected RESULT, SCORE, and SEVERITY fields. Got: ${analysis.substring(
+        analysis: `AI response format error: Expected RESULT, SCORE, SEVERITY, and DIFF_IMAGE fields. Got: ${analysis.substring(
           0,
           200
         )}...`,
@@ -260,6 +282,19 @@ Any response not in this exact format will be rejected.`;
           .map((i) => i.trim())
           .filter((i) => i.length > 0);
 
-    return { isValid, analysis, issues, score, model, severity };
+    const diffImageBase64 =
+      diffImageMatch[1].toLowerCase() !== "none"
+        ? diffImageMatch[1]
+        : undefined;
+
+    return {
+      isValid,
+      analysis,
+      issues,
+      score,
+      model,
+      severity,
+      ...(diffImageBase64 && { diffImageBase64 }),
+    };
   }
 }

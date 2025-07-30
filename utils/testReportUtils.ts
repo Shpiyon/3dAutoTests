@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { ScreenshotAnalysisResult } from "./aiScreenshotAnalyzer";
 import { ScreenshotTester } from "./screenshotTester";
-import * as fs from "fs";
 
 function getScreenshotDefaults() {
   const testInfo = test.info();
@@ -13,25 +12,14 @@ function getScreenshotDefaults() {
 }
 
 export function addAIAnalysisToReport(
-  analysisResult: ScreenshotAnalysisResult | undefined,
-  screenshotPath?: string
+  analysisResult: ScreenshotAnalysisResult | undefined
 ): void {
   if (!analysisResult) {
     test.info().annotations.push({
       type: "Comparison Mode",
       description: "Native Playwright Screenshot Comparison",
     });
-    if (screenshotPath) {
-      try {
-        const screenshotBuffer = fs.readFileSync(screenshotPath);
-        test.info().attach("Screenshot", {
-          body: screenshotBuffer,
-          contentType: "image/png",
-        });
-      } catch (error) {
-        console.log(`Screenshot attach failed for: ${screenshotPath}`);
-      }
-    }
+    // Note: Screenshots are now handled by ScreenshotTester.attachImagesToReport()
     return;
   }
   test.info().annotations.push({
@@ -54,17 +42,8 @@ export function addAIAnalysisToReport(
       description: analysisResult.severity,
     });
   }
-  if (screenshotPath) {
-    try {
-      const screenshotBuffer = fs.readFileSync(screenshotPath);
-      test.info().attach("Screenshot Analysis", {
-        body: screenshotBuffer,
-        contentType: "image/png",
-      });
-    } catch (error) {
-      console.log(`Screenshot attach failed for: ${screenshotPath}`, error);
-    }
-  }
+  // Note: Screenshots are now handled by ScreenshotTester.attachImagesToReport()
+  // to avoid duplicate attachments in the test report
 }
 
 export function assertAIAnalysisResults(
@@ -120,7 +99,7 @@ export async function runScreenshotTestWithReport(
 
   if (isAIMode) {
     const { analysisResult } = result;
-    addAIAnalysisToReport(analysisResult, result.screenshotPath);
+    addAIAnalysisToReport(analysisResult);
     assertAIAnalysisResults(
       analysisResult,
       result.success,

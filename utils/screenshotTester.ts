@@ -25,6 +25,24 @@ export interface ScreenshotTestResult {
 export class ScreenshotTester {
   constructor(private page: Page) {}
 
+  private async retryOperation<T>(
+    operation: () => Promise<T>,
+    maxAttempts: number = 3,
+    delayMs: number = 2000
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt === maxAttempts) {
+          throw error;
+        }
+        await this.page.waitForTimeout(delayMs);
+      }
+    }
+    throw new Error("Unexpected end of retry loop");
+  }
+
   async runScreenshotTest(
     options: ScreenshotTestOptions
   ): Promise<ScreenshotTestResult> {
@@ -43,23 +61,25 @@ export class ScreenshotTester {
       if (element) {
         await expect(element).toHaveScreenshot(`${testName}.png`, {
           threshold,
-          timeout: 30000, // 30 seconds timeout
+          timeout: 15000,
         });
       } else {
         await expect(this.page).toHaveScreenshot(`${testName}.png`, {
           fullPage: true,
           threshold,
-          timeout: 30000, // 30 seconds timeout
+          timeout: 15000,
         });
       }
+
       return {
         success: true,
         isBaseline: false,
         nativeResult: { passed: true },
       };
-    } catch {
+    } catch (error) {
+      // Comparison failed
       const testInfo = require("@playwright/test").test.info();
-      return {
+      const failedResult = {
         success: false,
         isBaseline: false,
         nativeResult: {
@@ -68,6 +88,20 @@ export class ScreenshotTester {
         },
         screenshotPath: `${testInfo.outputDir}/${options.testName}-actual.png`,
       };
+
+      if (testInfo && testInfo.attachments) {
+        testInfo.attachments.push({
+          name: "screenshot-comparison-result",
+          body: JSON.stringify(failedResult),
+          contentType: "application/json",
+        });
+      }
+
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Screenshot comparison failed for ${testName}: ${errorMessage}`
+      );
     }
   }
 
@@ -80,65 +114,72 @@ export class ScreenshotTester {
     const snapshotExists = await this.checkSnapshotExists(testName);
 
     if (!snapshotExists) {
-      console.log(
-        `[${new Date().toISOString()}] Creating baseline snapshot for ${testName}`
-      );
+      console.log(`Creating baseline snapshot for ${testName}`);
       try {
         if (element) {
-          console.log(
-            `[${new Date().toISOString()}] Taking element screenshot with 30s timeout...`
-          );
-          // Log element state before screenshot
-          const isVisible = await element.isVisible();
-          const isEnabled = await element.isEnabled();
-          console.log(
-            `[${new Date().toISOString()}] Element state - visible: ${isVisible}, enabled: ${isEnabled}`
-          );
-
           await expect(element).toHaveScreenshot(`${testName}.png`, {
-            timeout: 30000, // 30 seconds timeout
+            timeout: 15000,
           });
         } else {
-          console.log(
-            `[${new Date().toISOString()}] Taking full page screenshot with 30s timeout...`
-          );
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
-            timeout: 30000, // 30 seconds timeout
+            timeout: 15000,
           });
         }
-
-        const screenshot = await this.takeScreenshot({ element });
-        return {
-          success: true,
-          isBaseline: true,
-          screenshotPath: await this.saveScreenshot(testName, screenshot),
-        };
       } catch (error) {
         throw new Error(
           `Failed to create baseline snapshot for ${testName}: ${error}`
         );
       }
+
+      return {
+        success: true,
+        isBaseline: true,
+      };
     }
 
     console.log(`Running AI analysis for ${testName}`);
 
-    const screenshot = await this.takeScreenshot({ element });
+    const currentScreenshot = await this.takeScreenshot({ element });
+
+    const baselineImageBase64 = await this.loadBaselineSnapshot(testName);
+
+    if (!baselineImageBase64) {
+      throw new Error(
+        `Baseline snapshot not found for ${testName}. AI analysis requires both baseline and current screenshots. ` +
+          `Please run the test once to create the baseline snapshot, then run again for AI comparison.`
+      );
+    }
 
     const analysisResult =
       await AIScreenshotAnalyzer.analyze3DVisualizationPage(
-        screenshot.toString("base64")
+        currentScreenshot.toString("base64"),
+        baselineImageBase64
       );
 
     const passed =
       analysisResult.score >= threshold &&
       !analysisResult.analysis.toLowerCase().includes("critical");
 
+    // Save current screenshot
+    const currentScreenshotPath = await this.saveScreenshot(
+      testName + "-current",
+      currentScreenshot
+    );
+
+    // Attach all images to test report
+    await this.attachImagesToReport(testName, {
+      currentScreenshot,
+      baselineImageBase64,
+      diffImageBase64: analysisResult.diffImageBase64,
+      analysisResult,
+    });
+
     return {
       success: passed,
       isBaseline: false,
       analysisResult,
-      screenshotPath: await this.saveScreenshot(testName, screenshot),
+      screenshotPath: currentScreenshotPath,
     };
   }
 
@@ -174,27 +215,15 @@ export class ScreenshotTester {
   }
 
   private async takeElementScreenshot(element: Locator): Promise<Buffer> {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        return await element.screenshot();
-      } catch (error) {
-        if (attempt === 3) throw error;
-        await this.page.waitForTimeout(2000);
-      }
-    }
-    throw new Error("Element screenshot failed");
+    return await this.retryOperation(async () => {
+      return await element.screenshot();
+    });
   }
 
   private async takeFullPageScreenshot(): Promise<Buffer> {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      try {
-        return await this.page.screenshot();
-      } catch (error) {
-        if (attempt === 3) throw error;
-        await this.page.waitForTimeout(2000);
-      }
-    }
-    throw new Error("Full page screenshot failed");
+    return await this.retryOperation(async () => {
+      return await this.page.screenshot();
+    });
   }
 
   async saveScreenshot(testName: string, screenshot: Buffer): Promise<string> {
@@ -208,5 +237,84 @@ export class ScreenshotTester {
     );
     fs.writeFileSync(screenshotPath, screenshot);
     return screenshotPath;
+  }
+
+  private async loadBaselineSnapshot(
+    testName: string
+  ): Promise<string | undefined> {
+    const testInfo = require("@playwright/test").test.info();
+    const testFilePath = testInfo?.file;
+
+    if (!testFilePath) return undefined;
+
+    const testFileName = path.basename(testFilePath, ".ts");
+    const snapshotDir = path.join(
+      path.dirname(testFilePath),
+      `${testFileName}.ts-snapshots`
+    );
+    const platform = process.platform === "win32" ? "win32" : "linux";
+    const normalizedTestName = testName.replace(/\s+/g, "-").toLowerCase();
+
+    const snapshotPath = path.join(
+      snapshotDir,
+      `${normalizedTestName}-chromium-${platform}.png`
+    );
+
+    if (fs.existsSync(snapshotPath)) {
+      const imageBuffer = fs.readFileSync(snapshotPath);
+      return imageBuffer.toString("base64");
+    }
+
+    return undefined;
+  }
+
+  private async attachImagesToReport(
+    testName: string,
+    images: {
+      currentScreenshot: Buffer;
+      baselineImageBase64?: string;
+      diffImageBase64?: string;
+      analysisResult: any;
+    }
+  ): Promise<void> {
+    const testInfo = require("@playwright/test").test.info();
+
+    if (!testInfo) return;
+
+    try {
+      testInfo.attachments.push({
+        name: `${testName}-current`,
+        body: images.currentScreenshot,
+        contentType: "image/png",
+      });
+
+      if (images.baselineImageBase64) {
+        testInfo.attachments.push({
+          name: `${testName}-baseline`,
+          body: Buffer.from(images.baselineImageBase64, "base64"),
+          contentType: "image/png",
+        });
+      }
+
+      if (images.diffImageBase64) {
+        testInfo.attachments.push({
+          name: `${testName}-ai-diff`,
+          body: Buffer.from(images.diffImageBase64, "base64"),
+          contentType: "image/png",
+        });
+      }
+
+      testInfo.attachments.push({
+        name: `${testName}-ai-analysis`,
+        body: JSON.stringify(images.analysisResult, null, 2),
+        contentType: "application/json",
+      });
+
+      console.log(
+        `📎 Attached ${testInfo.attachments.length} items to test report for ${testName}`
+      );
+    } catch (error) {
+      console.warn(`Failed to attach images to test report: ${error}`);
+    }
   }
 }

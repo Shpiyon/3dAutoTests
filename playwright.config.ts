@@ -24,7 +24,7 @@ export default defineConfig({
         "--max_old_space_size=4096",
       ],
     },
-    screenshot: "only-on-failure",
+    screenshot: "off",
     video: "retain-on-failure",
     trace: "on-first-retry",
     navigationTimeout: 45000,

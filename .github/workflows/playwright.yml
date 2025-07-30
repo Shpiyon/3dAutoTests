@@ -74,7 +74,6 @@ jobs:
           name: generated-snapshots-${{ github.run_number }}
           path: |
             tests/**/*-snapshots/
-            test-results/**/*.png
           retention-days: 7
 
       - name: Test Summary
