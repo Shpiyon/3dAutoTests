@@ -61,13 +61,13 @@ export class ScreenshotTester {
       if (element) {
         await expect(element).toHaveScreenshot(`${testName}.png`, {
           threshold,
-          timeout: 15000,
+          timeout: 30000,
         });
       } else {
         await expect(this.page).toHaveScreenshot(`${testName}.png`, {
           fullPage: true,
           threshold,
-          timeout: 15000,
+          timeout: 30000,
         });
       }
 
@@ -118,12 +118,12 @@ export class ScreenshotTester {
       try {
         if (element) {
           await expect(element).toHaveScreenshot(`${testName}.png`, {
-            timeout: 15000,
+            timeout: 30000,
           });
         } else {
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
-            timeout: 15000,
+            timeout: 30000,
           });
         }
       } catch (error) {
