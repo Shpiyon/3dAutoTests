@@ -117,9 +117,27 @@ export class ScreenshotTester {
       console.log(`Creating baseline snapshot for ${testName}`);
       try {
         if (element) {
-          await expect(element).toHaveScreenshot(`${testName}.png`, {
-            timeout: 30000,
-          });
+          let useClipApproach = false;
+          let boundingBox = null;
+
+          if (process.env.CI === "true") {
+            // CI: Try to use clip approach to avoid stability issues
+            boundingBox = await element.boundingBox();
+            if (boundingBox) {
+              await expect(this.page).toHaveScreenshot(`${testName}.png`, {
+                clip: boundingBox,
+                timeout: 30000,
+              });
+              useClipApproach = true;
+            }
+          }
+
+          // Use standard approach for local mode OR when CI clip approach failed
+          if (!useClipApproach) {
+            await expect(element).toHaveScreenshot(`${testName}.png`, {
+              timeout: 30000,
+            });
+          }
         } else {
           await expect(this.page).toHaveScreenshot(`${testName}.png`, {
             fullPage: true,
@@ -216,6 +234,15 @@ export class ScreenshotTester {
 
   private async takeElementScreenshot(element: Locator): Promise<Buffer> {
     return await this.retryOperation(async () => {
+      if (process.env.CI === "true") {
+        // CI: Try to get bounding box and use clip to avoid stability issues
+        const boundingBox = await element.boundingBox();
+        if (boundingBox) {
+          return await this.page.screenshot({ clip: boundingBox });
+        }
+      }
+
+      // Use standard approach for local mode OR when CI clip approach failed
       return await element.screenshot();
     });
   }
