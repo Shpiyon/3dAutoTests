@@ -1,34 +1,25 @@
-import { test, Page, BrowserContext } from "@playwright/test";
+import { test } from "../utils/testFixtures";
 import { HomePage } from "../pages/HomePage";
 import { ScreenshotTester } from "../utils/screenshotTester";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 
 test.describe("Home Page Functionality", () => {
-  let homePage: HomePage;
   let screenshotTester: ScreenshotTester;
-  let page: Page;
-  let context: BrowserContext;
+  let homePage: HomePage | null;
 
-  test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    page = await context.newPage();
-    homePage = new HomePage(page);
-    await homePage.startPage();
+  test.beforeEach(async ({ page, createPage }) => {
     screenshotTester = new ScreenshotTester(page);
-  });
-
-  test.afterAll(async () => {
-    await page.close();
-    await context.close();
+    homePage = await createPage(HomePage);
+    test.skip(!homePage, "Not supported for this project type");
   });
 
   test("Should have working navigation menu", async () => {
-    await homePage.navigationComponentHelper.verifyNavigationIsVisible();
+    await homePage!.navigationComponentHelper.verifyNavigationIsVisible();
     await runScreenshotTestWithReport(
       screenshotTester,
       "3d-homepage-navBar-element",
       {
-        element: homePage.navigationComponent.topNavbar,
+        element: homePage!.navigationComponent.topNavbar,
       }
     );
   });
@@ -46,8 +37,8 @@ test.describe("Home Page Functionality", () => {
       );
     });
 
-    test("3D Homepage Visual Regression Test (Home view)", async () => {
-      await homePage.navigationComponentHelper.navigateToHome();
+    test("3D Homepage Visual Regression Test (Home view)", async ({ page }) => {
+      await homePage!.navigationComponentHelper.navigateToHome();
       await page.waitForTimeout(5000);
       await runScreenshotTestWithReport(
         screenshotTester,

@@ -1,4 +1,5 @@
-import { test, Page, BrowserContext, expect } from "@playwright/test";
+import { test } from "../utils/testFixtures";
+import { expect } from "@playwright/test";
 import { ApartmentsPage } from "../pages/apartments-page/ApartmentsPage";
 import { ApartmentsPageHelper } from "../pages/apartments-page/apartmentsPageHelper";
 import { NavigationComponentHelper } from "../components/navigation-component/navigationComponentHelper";
@@ -6,26 +7,17 @@ import { ScreenshotTester } from "../utils/screenshotTester";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
 
 test.describe("Apartments Page Visual Regression Tests", () => {
-  let apartmentsPage: ApartmentsPage;
   let apartmentsHelper: ApartmentsPageHelper;
   let navigationHelper: NavigationComponentHelper;
   let screenshotTester: ScreenshotTester;
-  let page: Page;
-  let context: BrowserContext;
+  let apartmentsPage: ApartmentsPage | null;
 
-  test.beforeAll(async ({ browser }) => {
-    context = await browser.newContext();
-    page = await context.newPage();
-    apartmentsPage = new ApartmentsPage(page);
-    apartmentsHelper = new ApartmentsPageHelper(page);
+  test.beforeEach(async ({ page, createPage }, testInfo) => {
+    apartmentsHelper = new ApartmentsPageHelper(page, testInfo.project.name);
     navigationHelper = new NavigationComponentHelper(page);
     screenshotTester = new ScreenshotTester(page);
-    await apartmentsPage.startPage();
-  });
-
-  test.afterAll(async () => {
-    await page.close();
-    await context.close();
+    apartmentsPage = await createPage(ApartmentsPage);
+    test.skip(!apartmentsPage, "Not supported for this project type");
   });
 
   test("Apartments page UI elements on their place", async () => {
@@ -33,31 +25,17 @@ test.describe("Apartments Page Visual Regression Tests", () => {
     await apartmentsHelper.verifyApartmentCardWithOptionsDisplayed();
     expect(await navigationHelper.isNavItemActive("Apartments")).toBeTruthy();
 
-    await apartmentsHelper.verifyApartmentOptionText(
-      apartmentsPage.apartment1,
-      "Apartments, block 1"
-    );
-
-    await apartmentsHelper.verifyApartmentOptionText(
-      apartmentsPage.apartment2,
-      "Apartments, block 2"
-    );
-
-    await apartmentsHelper.verifyApartmentOptionText(
-      apartmentsPage.apartment3,
-      "Apartments, block 3"
-    );
-
-    await apartmentsHelper.verifyApartmentOptionText(
-      apartmentsPage.villas,
-      "Villa"
-    );
+    // Semantic methods - no direct locator access!
+    await apartmentsHelper.verifyApartment1Text("Apartments, block 1");
+    await apartmentsHelper.verifyApartment2Text("Apartments, block 2");
+    await apartmentsHelper.verifyApartment3Text("Apartments, block 3");
+    await apartmentsHelper.verifyVillasText("Villa");
 
     await runScreenshotTestWithReport(
       screenshotTester,
       "apartments-list-view",
       {
-        element: apartmentsPage.apartmentCard,
+        element: apartmentsHelper.getApartmentCard(),
       }
     );
 
@@ -65,7 +43,7 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       screenshotTester,
       "apartments-top-panel",
       {
-        element: apartmentsPage.navigationComponent.topNavbar,
+        element: apartmentsHelper.getTopNavbar(),
       }
     );
   });
@@ -84,7 +62,7 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       );
     });
 
-    test("3D Apartment Type 1 Visual Regression Test", async () => {
+    test("3D Apartment Type 1 Visual Regression Test", async ({ page }) => {
       await navigationHelper.navigateToApartments();
       await apartmentsHelper.clickApartment1Option();
       await page.waitForTimeout(5000);
@@ -94,7 +72,7 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       );
     });
 
-    test("3D Apartment Type 2 Visual Regression Test", async () => {
+    test("3D Apartment Type 2 Visual Regression Test", async ({ page }) => {
       await navigationHelper.navigateToApartments();
       await apartmentsHelper.clickApartment2Option();
       await page.waitForTimeout(5000);
@@ -104,7 +82,7 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       );
     });
 
-    test("3D Apartment Type 3 Visual Regression Test", async () => {
+    test("3D Apartment Type 3 Visual Regression Test", async ({ page }) => {
       await navigationHelper.navigateToApartments();
       await apartmentsHelper.clickApartment3Option();
       await page.waitForTimeout(5000);
@@ -114,7 +92,7 @@ test.describe("Apartments Page Visual Regression Tests", () => {
       );
     });
 
-    test("3D Villas View Visual Regression Test", async () => {
+    test("3D Villas View Visual Regression Test", async ({ page }) => {
       await navigationHelper.navigateToApartments();
       await apartmentsHelper.clickVillas();
       await page.waitForTimeout(5000);

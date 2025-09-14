@@ -37,8 +37,35 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      name: "chromium-web",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
+    {
+      name: "chromium-mobile",
+      use: {
+        ...devices["iPhone 12"],
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: "native-android",
+      use: {
+        ...devices["Galaxy S9+"],
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
+      name: "native-ios",
+      use: {
+        ...devices["iPhone 12"],
+        isMobile: true,
+        hasTouch: true,
+      },
     },
   ],
 });

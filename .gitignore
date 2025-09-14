@@ -6,5 +6,9 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
+# Test snapshots
+**/*-snapshots/
+tests/**/*-snapshots/
+
 #env
 .env

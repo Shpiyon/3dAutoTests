@@ -1,49 +1,23 @@
-import { test, Page, BrowserContext } from "@playwright/test";
+import { test } from "../utils/testFixtures";
 import { AmenitiesPage } from "../pages/amenities-page/AmenitiesPage";
-import { AmenitiesPageHelper } from "../pages/amenities-page/AmenitiesPageHelper";
+import { AmenitiesPageHelper } from "../pages/amenities-page/amenitiesPageHelper";
 import { ScreenshotTester } from "../utils/screenshotTester";
 import { runScreenshotTestWithReport } from "../utils/testReportUtils";
-import { NavigationComponentHelper } from "components/navigation-component/navigationComponentHelper";
+import { NavigationComponentHelper } from "../components/navigation-component/navigationComponentHelper";
 
 test.describe("Amenities Page Visual Regression Tests", () => {
   let navigationHelper: NavigationComponentHelper;
-  let amenitiesPage: AmenitiesPage;
   let amenitiesHelper: AmenitiesPageHelper;
   let screenshotTester: ScreenshotTester;
-  let page: Page;
-  let context: BrowserContext;
+  let amenitiesPage: AmenitiesPage | null;
 
-  if (process.env.CI === "true") {
-    test.beforeEach(async ({ browser }) => {
-      context = await browser.newContext();
-      page = await context.newPage();
-      amenitiesPage = new AmenitiesPage(page);
-      amenitiesHelper = new AmenitiesPageHelper(page);
-      screenshotTester = new ScreenshotTester(page);
-      navigationHelper = new NavigationComponentHelper(page);
-      await amenitiesPage.startPage();
-    });
-
-    test.afterEach(async () => {
-      await page.close();
-      await context.close();
-    });
-  } else {
-    test.beforeAll(async ({ browser }) => {
-      context = await browser.newContext();
-      page = await context.newPage();
-      amenitiesPage = new AmenitiesPage(page);
-      amenitiesHelper = new AmenitiesPageHelper(page);
-      screenshotTester = new ScreenshotTester(page);
-      navigationHelper = new NavigationComponentHelper(page);
-      await amenitiesPage.startPage();
-    });
-
-    test.afterAll(async () => {
-      await page.close();
-      await context.close();
-    });
-  }
+  test.beforeEach(async ({ page, createPage }) => {
+    amenitiesHelper = new AmenitiesPageHelper(page);
+    screenshotTester = new ScreenshotTester(page);
+    navigationHelper = new NavigationComponentHelper(page);
+    amenitiesPage = await createPage(AmenitiesPage);
+    test.skip(!amenitiesPage, "Not supported for this project type");
+  });
 
   const amenityTests = [
     { pin: "gymPin", label: "Gym" },
@@ -57,7 +31,7 @@ test.describe("Amenities Page Visual Regression Tests", () => {
     test(`Amenity: ${amenity.label} - 3D Scene and Card Visual Regression`, async () => {
       await navigationHelper.navigateToAmenities();
       await amenitiesHelper.clickPin(
-        amenitiesPage[amenity.pin as keyof AmenitiesPage] as any
+        amenitiesPage![amenity.pin as keyof typeof amenitiesPage] as any
       );
       await amenitiesHelper.expectAmenityCardVisibleWithTitle(amenity.label);
 
@@ -66,7 +40,7 @@ test.describe("Amenities Page Visual Regression Tests", () => {
           screenshotTester,
           `3d-amenity-${amenity.label.toLowerCase()}-view`,
           {
-            element: amenitiesPage.amenitieCard,
+            element: amenitiesPage!.amenitieCard,
           }
         );
       } else {

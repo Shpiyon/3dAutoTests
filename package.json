@@ -6,12 +6,20 @@
   "devDependencies": {
     "@playwright/test": "^1.52.0",
     "@types/node": "^22.15.29",
-    "typescript": "^5.8.3"
+    "@types/webdriverio": "^4.13.3",
+    "@wdio/protocols": "^9.16.2",
+    "appium": "^3.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
+    "webdriverio": "^9.19.2"
   },
   "scripts": {
     "test": "npx playwright test",
     "test:ui": "npx playwright test --ui",
     "test:report": "npx playwright show-report",
-    "validate": "node scripts/validate-workflow.js"
+    "test:web": "npx playwright test --project=chromium-web",
+    "test:mobile": "npx playwright test --project=chromium-mobile",
+    "test:native:android": "npx playwright test --project=native-android",
+    "test:native:ios": "npx playwright test --project=native-ios"
   }
 }

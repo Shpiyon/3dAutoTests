@@ -54,6 +54,7 @@ export class AIScreenshotAnalyzer {
 2. Identify any regressions, improvements, or changes
 3. Generate a visual diff highlighting the differences
 4. Assess the impact of changes on user experience
+5. Each visual difference is vital, so decrease the score
 
 ${
   process.env.CI === "true"

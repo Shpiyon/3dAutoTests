@@ -1,10 +1,11 @@
-import { Page, expect, Locator } from "@playwright/test";
+import { expect, Locator } from "@playwright/test";
 import { ApartmentsPage } from "./ApartmentsPage";
+
 export class ApartmentsPageHelper {
   private readonly apartmentsPage: ApartmentsPage;
 
-  constructor(page: Page) {
-    this.apartmentsPage = new ApartmentsPage(page);
+  constructor(pageOrDriver: any, projectName?: string) {
+    this.apartmentsPage = new ApartmentsPage(pageOrDriver, projectName);
   }
 
   async verifyApartmentCardWithOptionsDisplayed() {
@@ -31,7 +32,34 @@ export class ApartmentsPageHelper {
     await this.apartmentsPage.villas.click();
   }
 
+  // Semantic helper methods - no direct locator passing needed!
+  async verifyApartment1Text(expectedText: string) {
+    await expect(this.apartmentsPage.apartment1).toHaveText(expectedText);
+  }
+
+  async verifyApartment2Text(expectedText: string) {
+    await expect(this.apartmentsPage.apartment2).toHaveText(expectedText);
+  }
+
+  async verifyApartment3Text(expectedText: string) {
+    await expect(this.apartmentsPage.apartment3).toHaveText(expectedText);
+  }
+
+  async verifyVillasText(expectedText: string) {
+    await expect(this.apartmentsPage.villas).toHaveText(expectedText);
+  }
+
+  // Keep the generic method for flexibility
   async verifyApartmentOptionText(locator: Locator, expectedText: string) {
     await expect(locator).toHaveText(expectedText);
+  }
+
+  // Helper to get screenshot elements
+  getApartmentCard() {
+    return this.apartmentsPage.apartmentCard;
+  }
+
+  getTopNavbar() {
+    return this.apartmentsPage.navigationComponent.topNavbar;
   }
 }

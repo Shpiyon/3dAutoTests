@@ -121,7 +121,7 @@ export class ScreenshotTester {
           let boundingBox = null;
 
           if (process.env.CI === "true") {
-            // CI: Try to use clip approach to avoid stability issues
+            // CI: Use clip approach to avoid stability issues
             boundingBox = await element.boundingBox();
             if (boundingBox) {
               await expect(this.page).toHaveScreenshot(`${testName}.png`, {
@@ -338,7 +338,7 @@ export class ScreenshotTester {
       });
 
       console.log(
-        `📎 Attached ${testInfo.attachments.length} items to test report for ${testName}`
+        `Attached ${testInfo.attachments.length} items to test report for ${testName}`
       );
     } catch (error) {
       console.warn(`Failed to attach images to test report: ${error}`);
