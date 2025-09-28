@@ -25,7 +25,6 @@ test.describe("Apartments Page Visual Regression Tests", () => {
     await apartmentsHelper.verifyApartmentCardWithOptionsDisplayed();
     expect(await navigationHelper.isNavItemActive("Apartments")).toBeTruthy();
 
-    // Semantic methods - no direct locator access!
     await apartmentsHelper.verifyApartment1Text("Apartments, block 1");
     await apartmentsHelper.verifyApartment2Text("Apartments, block 2");
     await apartmentsHelper.verifyApartment3Text("Apartments, block 3");

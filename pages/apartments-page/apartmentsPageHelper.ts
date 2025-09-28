@@ -32,7 +32,6 @@ export class ApartmentsPageHelper {
     await this.apartmentsPage.villas.click();
   }
 
-  // Semantic helper methods - no direct locator passing needed!
   async verifyApartment1Text(expectedText: string) {
     await expect(this.apartmentsPage.apartment1).toHaveText(expectedText);
   }
@@ -49,12 +48,10 @@ export class ApartmentsPageHelper {
     await expect(this.apartmentsPage.villas).toHaveText(expectedText);
   }
 
-  // Keep the generic method for flexibility
   async verifyApartmentOptionText(locator: Locator, expectedText: string) {
     await expect(locator).toHaveText(expectedText);
   }
 
-  // Helper to get screenshot elements
   getApartmentCard() {
     return this.apartmentsPage.apartmentCard;
   }
