@@ -212,13 +212,14 @@ export class ScreenshotTester {
       path.dirname(testFilePath),
       `${testFileName}.ts-snapshots`
     );
+    const projectName = testInfo?.project?.name || "chromium-web";
     const platform = process.platform === "win32" ? "win32" : "linux";
 
     const normalizedTestName = testName.replace(/\s+/g, "-").toLowerCase();
 
     const snapshotPath = path.join(
       snapshotDir,
-      `${normalizedTestName}-chromium-${platform}.png`
+      `${normalizedTestName}-${projectName}-${platform}.png`
     );
     return fs.existsSync(snapshotPath);
   }
@@ -279,12 +280,13 @@ export class ScreenshotTester {
       path.dirname(testFilePath),
       `${testFileName}.ts-snapshots`
     );
+    const projectName = testInfo?.project?.name || "chromium-web";
     const platform = process.platform === "win32" ? "win32" : "linux";
     const normalizedTestName = testName.replace(/\s+/g, "-").toLowerCase();
 
     const snapshotPath = path.join(
       snapshotDir,
-      `${normalizedTestName}-chromium-${platform}.png`
+      `${normalizedTestName}-${projectName}-${platform}.png`
     );
 
     if (fs.existsSync(snapshotPath)) {
